@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:auto_size_text/auto_size_text.dart';
+
 import 'package:tacostream/services/flairmoji.dart';
 
 class Flair extends StatelessWidget {
@@ -25,23 +27,21 @@ class Flair extends StatelessWidget {
         // add text otherwise
       } else {
         widgets.add(Padding(
-            padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
-            child: Text(flairText,
-                textScaleFactor: .8,
-                textAlign: TextAlign.start,
-                style: TextStyle(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withAlpha(130)))));
+          padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
+          child: AutoSizeText(flairText,
+              maxLines: 1,
+              textScaleFactor: .8,
+              textAlign: TextAlign.start,
+              style: TextStyle(
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withAlpha(130))),
+        ));
       }
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
-      child: Row(
-        children: widgets,
-      ),
+    return Flex(
+      direction: Axis.horizontal,
+      children: widgets,
     );
   }
 }

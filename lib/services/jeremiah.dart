@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -15,28 +16,20 @@ import 'package:tacostream/models/comment.dart';
 /// DB: Objectives and Goals
 class Jeremiah extends ChangeNotifier with BaseService {
   final _fs = FirebaseFirestore.instanceFor(app: Firebase.app());
-  final controller = ReplaySubject<Comment>();
-  CollectionReference _comments() => _fs.collection('comments');
-
-  // /// streams a `Objective`
-  // Stream<Objective> streamObjective(String id) {
-  //   // init input and output streams as necessary
-  //   if (!this._objectiveCtrls.containsKey(id) ||
-  //       this._objectiveCtrls[id] == null)
-  //     this._objectiveCtrls[id] = BehaviorSubject();
-  //   if (!this._docSubs.containsKey(id) || this._docSubs[id] == null)
-  //     this._docSubs[id] = _comments().doc(id).snapshots().listen((data) =>
-  //         this._objectiveCtrls[id].add(Objective.fromMap(data.data())));
-
-  //   return this._objectiveCtrls[id].stream;
-  // }
+  var controller = ReplaySubject<Comment>();
+  final indexedCache = Map<String, Comment>();
 
   void close() {
     controller.close();
   }
 
+  // TODO at start of stream, grab oldest comments's date time and start downloading
+  //      comments older than that, adding them to the bottom of the stream as they're fetched
+  //      and stopping when we hit the local cache or timedelta hits 24hrs.
+  //      when/if the user scrolls to minextent, we can start loading from the cache
+
   /// streams all of a user's `Objective`s
-  ReplaySubject streamComments() {
+  ReplaySubject streamComments({int attempt = 0}) {
     // init input and output streams as necessary
     http.Client client = http.Client();
 
@@ -47,14 +40,29 @@ class Jeremiah extends ChangeNotifier with BaseService {
 
     Future<http.StreamedResponse> response = client.send(request);
     print("Subscribed!");
-    response.then(
+    response.catchError((_) {
+      if (attempt >= 10)
+        throw (http.ClientException('Unable to contact server.'));
+      if (attempt > 0) sleep(Duration(seconds: attempt * attempt));
+      streamComments(attempt: attempt + 1);
+    }).then(
       (streamedResponse) => streamedResponse.stream.listen(
         (value) {
-          final parsedData =
-              json.decode(utf8.decode(value, allowMalformed: true).substring(5))
-                  as Map<String, dynamic>;
+          var parsedData;
+          try {
+            parsedData = json.decode(
+                    utf8.decode(value, allowMalformed: true).substring(5))
+                as Map<String, dynamic>;
+          } catch (e) {
+            print("unable to decode response: $value");
+          }
+
           if (parsedData != null) {
-            controller.add(Comment.fromMap(parsedData));
+            final comment = Comment.fromMap(parsedData);
+            indexedCache[comment.id] = comment;
+            if (indexedCache.length % 100 == 0)
+              print("status: ${indexedCache.length} items in cache");
+            controller.add(indexedCache[comment.id]);
           }
         },
         onDone: () {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:hive/hive.dart';
 import 'package:tacostream/core/base/service.dart';
 import 'package:tacostream/core/base/theme.dart';
@@ -19,6 +20,10 @@ class ThemeService extends ChangeNotifier with BaseService {
     notifyListeners();
   }
 
+  MarkdownStyleSheet get currentMarkdown => darkMode
+      ? _currentBaseTheme.markdownDark
+      : _currentBaseTheme.markdownLight;
+
   ThemeData get currentTheme =>
       _getTheme(box.get('currentTheme', defaultValue: ""));
 
@@ -29,6 +34,7 @@ class ThemeService extends ChangeNotifier with BaseService {
     BaseTheme theme = _getBaseTheme(themeName) ?? themes[0];
     return darkMode ? theme.dark : theme.light;
   }
+
   BaseTheme _getBaseTheme(themeName) {
     for (var theme in themes) {
       if (theme.name == themeName) return theme;

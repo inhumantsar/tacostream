@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:tacostream/core/base/theme.dart';
 
 class OkayamaTheme implements BaseTheme {
@@ -6,18 +7,28 @@ class OkayamaTheme implements BaseTheme {
   MaterialColor get primaryColor => _buildColorScheme().primary;
   MaterialColor get primaryColorDark => _buildColorScheme(isDark: true).primary;
 
-  ThemeData get dark =>
-      ThemeData.from(colorScheme: _buildColorScheme(isDark: true));
-  ThemeData get light =>
-      ThemeData.from(colorScheme: _buildColorScheme(isDark: false));
+  ThemeData get dark => ThemeData.from(
+      colorScheme: _buildColorScheme(isDark: true),
+      textTheme: _buildTextTheme(isDark: true));
+  ThemeData get light => ThemeData.from(
+      colorScheme: _buildColorScheme(isDark: false),
+      textTheme: _buildTextTheme(isDark: false));
 
-  TextTheme _buildTextTheme() => TextTheme();
+  TextTheme _buildTextTheme({bool isDark}) {
+      var baseTheme = isDark ? ThemeData.dark() : ThemeData.light();
+      return baseTheme.textTheme.copyWith(bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
+  }
+
+  MarkdownStyleSheet get markdownLight => MarkdownStyleSheet.fromTheme(light)
+        .copyWith(blockquoteDecoration: BoxDecoration(color: crownRoyal[400]));
+
+  MarkdownStyleSheet get markdownDark => MarkdownStyleSheet.fromTheme(dark)
+      .copyWith(blockquoteDecoration: BoxDecoration(color: crownRoyal[400]));
 
   @override
   get props => [name];
   @override
   bool get stringify => true;
-
 
   ColorScheme _buildColorScheme({bool isDark = false}) => ColorScheme(
       primary: crownRoyal,
@@ -46,17 +57,17 @@ class OkayamaTheme implements BaseTheme {
     100: Color(0x33c7b9ff),
     50: Color(0x1Ac7b9ff)
   });
-  final violet = MaterialColor(0xFF480675, {
-    900: Color(0xFF480675),
-    800: Color(0xE6480675),
-    700: Color(0xCC480675),
-    600: Color(0xB3480675),
-    500: Color(0x99480675),
-    400: Color(0x80480675),
-    300: Color(0x66480675),
-    200: Color(0x4D480675),
-    100: Color(0x33480675),
-    50:  Color(0x1A480675)
+  final violet = MaterialColor(0xFF240046, {
+    900: Color(0xFF240046),
+    800: Color(0xE6240046),
+    700: Color(0xCC240046),
+    600: Color(0xB3240046),
+    500: Color(0x99240046),
+    400: Color(0x80240046),
+    300: Color(0x66240046),
+    200: Color(0x4D240046),
+    100: Color(0x33240046),
+    50:  Color(0x1A240046)
   });
   final crownRoyal = MaterialColor(0xFF6622cc, {
     900: Color(0xFF6622cc),
@@ -92,7 +103,7 @@ class OkayamaTheme implements BaseTheme {
     300: Color(0x6617d8ff),
     200: Color(0x4D17d8ff),
     100: Color(0x3317d8ff),
-    50:  Color(0x1A17d8ff)
+    50: Color(0x1A17d8ff)
   });
   final congoPink = MaterialColor(0xFFF28076, {
     900: Color(0xFFF28076),

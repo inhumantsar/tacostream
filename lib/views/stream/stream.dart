@@ -1,12 +1,14 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/models/comment.dart';
 import 'package:tacostream/services/flairmoji.dart';
 import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
+import 'package:tacostream/widgets/comment/comment.dart';
 import 'package:tacostream/widgets/flair/flair.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:get_it/get_it.dart';
@@ -24,14 +26,6 @@ class _StreamViewState extends State<StreamView> {
   bool pinToTop = true;
   IconData pinIcon = FontAwesomeIcons.arrowCircleUp;
   ScrollController scrollController;
-
-  _launchUrl(url) async {
-    if (await canLaunch(url)) {
-      await launch(url);
-    } else {
-      throw 'Could not launch $url';
-    }
-  }
 
   @override
   void initState() {
@@ -58,9 +52,9 @@ class _StreamViewState extends State<StreamView> {
   }
 
   bool atMaxExtent() {
-    if (!scrollController.hasClients ||
-        (scrollController.offset >= scrollController.position.maxScrollExtent &&
-            !scrollController.position.outOfRange)) {
+    if (!scrollController.hasClients) return false;
+    if (scrollController.offset >= scrollController.position.maxScrollExtent &&
+        !scrollController.position.outOfRange) {
       return true;
     } else {
       return false;
@@ -68,9 +62,9 @@ class _StreamViewState extends State<StreamView> {
   }
 
   bool atMinExtent() {
-    if (!scrollController.hasClients ||
-        (scrollController.offset <= scrollController.position.minScrollExtent &&
-            !scrollController.position.outOfRange)) {
+    if (!scrollController.hasClients) return false;
+    if (scrollController.offset <= scrollController.position.minScrollExtent &&
+        !scrollController.position.outOfRange) {
       return true;
     } else {
       return false;
@@ -79,15 +73,13 @@ class _StreamViewState extends State<StreamView> {
 
   // TODO: add scroll controller. measure window height, if diff from last window height, autoadjust to maintain position
 
-  void animateToTop() => this.scrollController.animateTo(
-      this.scrollController.position.maxScrollExtent,
-      duration: Duration(
-          milliseconds: (500 *
-                  (1 +
-                      this.scrollController.offset /
-                          this.scrollController.position.maxScrollExtent))
-              .round()),
-      curve: Curves.fastOutSlowIn);
+  void animateToTop() {
+    if (!atMaxExtent() && !scrollController.position.isScrollingNotifier.value)
+      this.scrollController.animateTo(
+          this.scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 500),
+          curve: Curves.fastOutSlowIn);
+  }
 
   void togglePin() {
     setState(() {
@@ -117,8 +109,8 @@ class _StreamViewState extends State<StreamView> {
           ),
           IconButton(
               icon: Icon(themeService.darkMode
-                  ? Icons.lightbulb
-                  : Icons.lightbulb_outline),
+                  ? Icons.lightbulb_outline
+                  : Icons.lightbulb),
               color: themeService.darkMode
                   ? Theme.of(context).disabledColor
                   : Theme.of(context).accentColor,
@@ -137,7 +129,7 @@ class _StreamViewState extends State<StreamView> {
                 return !snapshot.hasData
                     ? SizedBox.shrink()
                     : ListView.builder(
-                        key: ObjectKey(streamController.values[0]),
+                        // key: ObjectKey(streamController.values[0]),
                         controller: this.scrollController,
                         padding: EdgeInsets.all(0),
                         shrinkWrap: true,
@@ -151,61 +143,14 @@ class _StreamViewState extends State<StreamView> {
 
                           var comment = streamController.values[index];
                           try {
-                            if (!atMaxExtent() && pinToTop) {
-                              animateToTop();
-                            }
-                          } catch(e) {print(e);}
-                          return GestureDetector(
-                            onTap: () => _launchUrl(comment.permalink),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
-                              child: Flex(
-                                  direction: Axis.vertical,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Row(children: [
-                                      Expanded(
-                                          child: MarkdownBody(
-                                        styleSheet:
-                                            MarkdownStyleSheet.fromTheme(
-                                                Theme.of(context)),
-                                        data: comment.body,
-                                        onTapLink: (text, href, title) =>
-                                            _launchUrl(href),
-                                      ))
-                                    ]),
-                                    Padding(
-                                        padding: const EdgeInsets.fromLTRB(
-                                            0, 4, 0, 0),
-                                        child: Container(
-                                          height: 25,
-                                          child: Row(children: [
-                                            Text(
-                                              comment.author,
-                                              textScaleFactor: .8,
-                                              textAlign: TextAlign.start,
-                                              style: TextStyle(
-                                                  color: Theme.of(context)
-                                                      .colorScheme
-                                                      .secondaryVariant,
-                                                  fontWeight: FontWeight.bold),
-                                            ),
-                                            Flair(comment.authorFlairText)
-                                          ]),
-                                        ))
-                                  ]),
-                            ),
-                          );
+                            if (pinToTop)
+                              SchedulerBinding.instance
+                                  .addPostFrameCallback((_) => animateToTop());
+                          } catch (e) {
+                            print(e);
+                          }
 
-                          // ListTile(
-                          //   isThreeLine: true,
-                          //   onTap: () =>
-                          //       _launchUrl("https://reddit.com" + comment.permalink),
-                          //   contentPadding:
-                          //       EdgeInsets.symmetric(vertical: 0, horizontal: 0),
-                          //   title: Text(comment.author),
-                          //   subtitle: Text(comment.body),
-                          // );
+                          return CommentWidget(comment);
                         });
               })),
     );
