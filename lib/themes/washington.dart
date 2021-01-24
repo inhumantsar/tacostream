@@ -7,20 +7,28 @@ class WashingtonTheme implements BaseTheme {
   MaterialColor get primaryColor => _buildColorScheme().primary;
   MaterialColor get primaryColorDark => _buildColorScheme(isDark: true).primary;
 
-  ThemeData get dark => ThemeData.from(
-      colorScheme: _buildColorScheme(isDark: true),
-      textTheme: _buildTextTheme(isDark: true));
-  ThemeData get light => ThemeData.from(
-      colorScheme: _buildColorScheme(isDark: false),
-      textTheme: _buildTextTheme(isDark: false));
+  ThemeData get dark {
+    return ThemeData.from(
+            colorScheme: _buildColorScheme(isDark: true),
+            textTheme: _buildTextTheme(isDark: true))
+        .copyWith(buttonColor: sandyBrown[700]);
+  }
+
+  ThemeData get light {
+    return ThemeData.from(
+            colorScheme: _buildColorScheme(isDark: false),
+            textTheme: _buildTextTheme(isDark: false))
+        .copyWith();
+  }
 
   TextTheme _buildTextTheme({bool isDark}) {
-      var baseTheme = isDark ? ThemeData.dark() : ThemeData.light();
-      return baseTheme.textTheme.copyWith(bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
+    var baseTheme = isDark ? ThemeData.dark() : ThemeData.light();
+    return baseTheme.textTheme.copyWith(
+        bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
   }
 
   MarkdownStyleSheet get markdownLight => MarkdownStyleSheet.fromTheme(light)
-        .copyWith(blockquoteDecoration: BoxDecoration(color: charcoal[300]));
+      .copyWith(blockquoteDecoration: BoxDecoration(color: charcoal[300]));
 
   MarkdownStyleSheet get markdownDark => MarkdownStyleSheet.fromTheme(dark)
       .copyWith(blockquoteDecoration: BoxDecoration(color: softGrey[300]));

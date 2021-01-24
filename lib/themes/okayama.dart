@@ -7,35 +7,43 @@ class OkayamaTheme implements BaseTheme {
   MaterialColor get primaryColor => _buildColorScheme().primary;
   MaterialColor get primaryColorDark => _buildColorScheme(isDark: true).primary;
 
-  ThemeData get dark => ThemeData.from(
-      colorScheme: _buildColorScheme(isDark: true),
-      textTheme: _buildTextTheme(isDark: true));
-  ThemeData get light => ThemeData.from(
-      colorScheme: _buildColorScheme(isDark: false),
-      textTheme: _buildTextTheme(isDark: false));
+  ThemeData get dark {
+    return ThemeData.from(
+            colorScheme: _buildColorScheme(isDark: true),
+            textTheme: _buildTextTheme(isDark: true))
+        .copyWith(
+      dividerColor: lilac[400],
+      buttonColor: vividSkyBlue[600],
+    );
+  }
 
-  TextTheme _buildTextTheme({bool isDark}) {
-      var baseTheme = isDark ? ThemeData.dark() : ThemeData.light();
-      return baseTheme.textTheme.copyWith(bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
+  ThemeData get light {
+    return ThemeData.from(
+            colorScheme: _buildColorScheme(isDark: false),
+            textTheme: _buildTextTheme(isDark: false))
+        .copyWith(
+      buttonColor: vividSkyBlue,
+    );
   }
 
   MarkdownStyleSheet get markdownLight => MarkdownStyleSheet.fromTheme(light)
-        .copyWith(blockquoteDecoration: BoxDecoration(color: crownRoyal[400]));
+      .copyWith(blockquoteDecoration: BoxDecoration(color: crownRoyal[400]));
 
   MarkdownStyleSheet get markdownDark => MarkdownStyleSheet.fromTheme(dark)
       .copyWith(blockquoteDecoration: BoxDecoration(color: crownRoyal[400]));
 
-  @override
-  get props => [name];
-  @override
-  bool get stringify => true;
+  TextTheme _buildTextTheme({bool isDark}) {
+    var baseTheme = isDark ? ThemeData.dark() : ThemeData.light();
+    return baseTheme.textTheme.copyWith(
+        bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
+  }
 
   ColorScheme _buildColorScheme({bool isDark = false}) => ColorScheme(
       primary: crownRoyal,
       primaryVariant: crownRoyal,
       secondary: mikadoYellow,
       secondaryVariant: isDark ? vividSkyBlue : violet,
-      surface: isDark ? violet : lilac,
+      surface: isDark ? crownRoyal : lilac,
       background: isDark ? violet : lilac,
       error: congoPink,
       onPrimary: Colors.black,
@@ -67,7 +75,7 @@ class OkayamaTheme implements BaseTheme {
     300: Color(0x66240046),
     200: Color(0x4D240046),
     100: Color(0x33240046),
-    50:  Color(0x1A240046)
+    50: Color(0x1A240046)
   });
   final crownRoyal = MaterialColor(0xFF6622cc, {
     900: Color(0xFF6622cc),
@@ -117,4 +125,9 @@ class OkayamaTheme implements BaseTheme {
     100: Color(0x33F28076),
     50: Color(0x1AF28076)
   });
+
+  @override
+  get props => [name];
+  @override
+  bool get stringify => true;
 }

@@ -34,14 +34,17 @@ dependencies:
   firebase_storage: ^5.0.1
   flutter_markdown: ^0.5.0
   flutter_platform_widgets: ^0.71.0
+  flutter_spinkit: ^4.1.2+1
   font_awesome_flutter: ^8.10.0
   get_it: ^5.0.1
   hive: ^1.4.4+1
   hive_flutter: ^0.3.1
+  in_app_purchase: ^0.3.4+16
   logger: ^0.9.4
   provider: ^4.3.2+2
   responsive_builder: ^0.3.0
   rxdart: ^0.24.1
+  sembast: ^2.4.8+1
   url_launcher: ^5.7.10
 
 dev_dependencies:

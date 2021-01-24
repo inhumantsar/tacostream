@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-/// Jeremiah - Objectives and individual goals
+/// Jeremiah - Comment stream
 
 import 'package:flutter/material.dart';
 import "package:http/http.dart" as http;
@@ -13,14 +13,20 @@ import 'package:tacostream/core/base/service.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:tacostream/models/comment.dart';
 
-/// DB: Objectives and Goals
 class Jeremiah extends ChangeNotifier with BaseService {
   final _fs = FirebaseFirestore.instanceFor(app: Firebase.app());
-  var controller = ReplaySubject<Comment>();
+  var _controller;
+  http.Client _httpClient;
   final indexedCache = Map<String, Comment>();
 
+  ReplaySubject get controller {
+    _streamComments();
+    return _controller;
+  }
+
   void close() {
-    controller.close();
+    _httpClient.close();
+    _controller.close();
   }
 
   // TODO at start of stream, grab oldest comments's date time and start downloading
@@ -29,48 +35,66 @@ class Jeremiah extends ChangeNotifier with BaseService {
   //      when/if the user scrolls to minextent, we can start loading from the cache
 
   /// streams all of a user's `Objective`s
-  ReplaySubject streamComments({int attempt = 0}) {
-    // init input and output streams as necessary
-    http.Client client = http.Client();
+  Future<void> _streamComments({int attempt = 0}) async {
+    _controller ??= ReplaySubject<Comment>();
 
-    http.Request request =
-        http.Request("GET", Uri.parse('http://tacostream-sse.samsite.ca:3000'));
+    // init input and output streams as necessary
+    _httpClient = http.Client();
+
+    http.Request request = http.Request(
+        "GET", Uri.parse('http://tacostream-sse.samsite.ca:3000/'));
     request.headers["Accept"] = "text/event-stream";
     request.headers["Cache-Control"] = "no-cache";
+    request.headers["Connection"] = "keep-alive";
 
-    Future<http.StreamedResponse> response = client.send(request);
+    Future<http.StreamedResponse> response = _httpClient.send(request);
     print("Subscribed!");
-    response.catchError((_) {
-      if (attempt >= 10)
-        throw (http.ClientException('Unable to contact server.'));
+    response.catchError((err) {
+      _httpClient.close();
+      if (attempt >= 10) {
+        _controller.addError(http.ClientException(
+            'Unable to contact server after 10 attempts.'));
+      }
+      print('error caught: $err. retrying in ${attempt * attempt}s...');
       if (attempt > 0) sleep(Duration(seconds: attempt * attempt));
-      streamComments(attempt: attempt + 1);
+      _streamComments(attempt: attempt + 1);
     }).then(
-      (streamedResponse) => streamedResponse.stream.listen(
-        (value) {
-          var parsedData;
-          try {
-            parsedData = json.decode(
-                    utf8.decode(value, allowMalformed: true).substring(5))
-                as Map<String, dynamic>;
-          } catch (e) {
-            print("unable to decode response: $value");
-          }
+      (streamedResponse) {
+        if (streamedResponse == null) {
+          print('response is null');
+          return;
+        }
+        streamedResponse.stream.listen(
+          (value) {
+            var decodedData;
+            var parsedData;
+            try {
+              decodedData =
+                  utf8.decode(value, allowMalformed: true).substring(5);
+            } catch (e) {
+              print("unable to decode response: $value");
+            }
+            try {
+              parsedData = json.decode(decodedData) as Map<String, dynamic>;
+            } catch (e) {
+              print("unable to parse json: $decodedData");
+            }
 
-          if (parsedData != null) {
-            final comment = Comment.fromMap(parsedData);
-            indexedCache[comment.id] = comment;
-            if (indexedCache.length % 100 == 0)
-              print("status: ${indexedCache.length} items in cache");
-            controller.add(indexedCache[comment.id]);
-          }
-        },
-        onDone: () {
-          controller.close();
-          print("The streamresponse is ended");
-        },
-      ),
+            if (parsedData != null) {
+              final comment = Comment.fromMap(parsedData);
+              indexedCache[comment.id] = comment;
+              if (indexedCache.length % 100 == 0)
+                print("status: ${indexedCache.length} items in cache");
+              _controller.add(indexedCache[comment.id]);
+            }
+          },
+          onDone: () {
+            _httpClient.close();
+            _controller.close();
+            print("The streamresponse is ended");
+          },
+        );
+      },
     );
-    return controller;
   }
 }

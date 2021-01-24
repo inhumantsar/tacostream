@@ -8,7 +8,8 @@
     <application
         android:name="io.flutter.app.FlutterApplication"
         android:label="tacostream"
-        android:icon="@mipmap/tacostream">
+        android:icon="@mipmap/tacostream"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"

@@ -97,7 +97,7 @@ class CommentWidget extends StatelessWidget {
                         ),
                         showFlair
                             ? Expanded(child: Flair(comment.authorFlairText))
-                            : SizedBox.shrink()
+                            : SizedBox.fromSize()
                       ]),
                     ]),
               ),

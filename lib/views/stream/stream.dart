@@ -1,19 +1,19 @@
-import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:provider/provider.dart';
+
+import 'package:get_it/get_it.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:tacostream/models/comment.dart';
-import 'package:tacostream/services/flairmoji.dart';
+
 import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
-import 'package:tacostream/widgets/flair/flair.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:get_it/get_it.dart';
-import 'package:rxdart/rxdart.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:tacostream/views/settings/settings.dart';
 
 class StreamView extends StatefulWidget {
   @override
@@ -26,11 +26,12 @@ class _StreamViewState extends State<StreamView> {
   bool pinToTop = true;
   IconData pinIcon = FontAwesomeIcons.arrowCircleUp;
   ScrollController scrollController;
+  ReplaySubject<Comment> streamController;
 
   @override
   void initState() {
     super.initState();
-    jeremiah.streamComments();
+    streamController = jeremiah.controller;
     scrollController = ScrollController(keepScrollOffset: false);
     scrollController.addListener(() {
       if (scrollController.position.userScrollDirection ==
@@ -46,8 +47,9 @@ class _StreamViewState extends State<StreamView> {
 
   @override
   void dispose() {
-    jeremiah.close();
+    this.streamController.close();
     this.scrollController.dispose();
+    jeremiah.close();
     super.dispose();
   }
 
@@ -93,7 +95,6 @@ class _StreamViewState extends State<StreamView> {
 
   @override
   Widget build(BuildContext context) {
-    var streamController = jeremiah.controller;
     var pinColor = pinToTop
         ? Theme.of(context).accentColor
         : Theme.of(context).disabledColor;
@@ -102,6 +103,12 @@ class _StreamViewState extends State<StreamView> {
       appBar: AppBar(
         title: Text("🌮 tacostream"),
         actions: [
+          IconButton(
+            icon: Icon(FontAwesomeIcons.cog),
+            color: Theme.of(context).accentColor,
+            onPressed: () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (context) => SettingsView())),
+          ),
           IconButton(
             icon: Icon(FontAwesomeIcons.palette),
             color: Theme.of(context).accentColor,
@@ -126,32 +133,64 @@ class _StreamViewState extends State<StreamView> {
           child: StreamBuilder<Object>(
               stream: streamController.stream,
               builder: (context, snapshot) {
-                return !snapshot.hasData
-                    ? SizedBox.shrink()
-                    : ListView.builder(
-                        // key: ObjectKey(streamController.values[0]),
-                        controller: this.scrollController,
-                        padding: EdgeInsets.all(0),
-                        shrinkWrap: true,
-                        reverse: true,
-                        itemCount: streamController.values.length,
-                        itemBuilder: (context, index) {
-                          if (streamController.values.length == 0 ||
-                              streamController.values[index] == null) {
-                            return SizedBox.shrink();
-                          }
+                if (snapshot.hasError) {
+                  return Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                      Icons.wifi_off,
+                      size: 200,
+                      color: Theme.of(context).disabledColor,
+                    ),
+                    Text(
+                      "Sorry about that!",
+                      style: Theme.of(context).textTheme.headline5,
+                    ),
+                    SizedBox.fromSize(
+                      size: Size(10, 10),
+                    ),
+                    Text(
+                        "Looks like our servers are down or this device is offline.",
+                        style: Theme.of(context).textTheme.bodyText2)
+                  ]));
+                }
 
-                          var comment = streamController.values[index];
-                          try {
-                            if (pinToTop)
-                              SchedulerBinding.instance
-                                  .addPostFrameCallback((_) => animateToTop());
-                          } catch (e) {
-                            print(e);
-                          }
+                if (!snapshot.hasData) {
+                  return Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    SpinKitDoubleBounce(
+                        color: Theme.of(context).accentColor,
+                        size: 100.0,
+                        duration: Duration(seconds: 10)),
+                    SizedBox.fromSize(
+                      size: Size(10, 30),
+                    ),
+                  ]));
+                }
 
-                          return CommentWidget(comment);
-                        });
+                return ListView.builder(
+                    // key: ObjectKey(streamController.values[0]),
+                    controller: this.scrollController,
+                    padding: EdgeInsets.all(0),
+                    shrinkWrap: true,
+                    reverse: true,
+                    itemCount: streamController.values.length,
+                    itemBuilder: (context, index) {
+                      if (streamController.values.length == 0 ||
+                          streamController.values[index] == null) {
+                        return SizedBox.shrink();
+                      }
+
+                      var comment = streamController.values[index];
+                      try {
+                        if (pinToTop)
+                          SchedulerBinding.instance
+                              .addPostFrameCallback((_) => animateToTop());
+                      } catch (e) {
+                        print(e);
+                      }
+
+                      return CommentWidget(comment);
+                    });
               })),
     );
   }
