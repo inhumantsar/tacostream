@@ -1,100 +1,88 @@
+// Jeremiah - DT Streaming
+
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_core/firebase_core.dart';
-
-/// Jeremiah - Comment stream
-
 import 'package:flutter/material.dart';
-import "package:http/http.dart" as http;
+import 'package:hive/hive.dart';
 import 'package:tacostream/core/base/service.dart';
-import 'package:rxdart/rxdart.dart';
-import 'package:tacostream/models/comment.dart';
+import 'package:tacostream/models/comment.dart' as taco;
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:draw/draw.dart';
 
 class Jeremiah extends ChangeNotifier with BaseService {
-  final _fs = FirebaseFirestore.instanceFor(app: Firebase.app());
-  var _controller;
-  http.Client _httpClient;
-  final indexedCache = Map<String, Comment>();
+  final Box<taco.Comment> _box;
+  final Reddit _reddit;
+  final String subreddit = 'neoliberal';
+  final String postTitle = 'Discussion Thread';
+  final String postAuthor = 'jobautomator';
+  StreamSubscription _incoming;
+  var currentDtShortlink;
+  var _hasError = false;
 
-  ReplaySubject get controller {
-    _streamComments();
-    return _controller;
+  Jeremiah(this._box, this._reddit);
+
+  Listenable get listenable {
+    this._incoming ?? _listenForNewComments();
+    return _box.listenable();
   }
+
+  Iterable<taco.Comment> get comments => _box.values;
+  List get commentIds => _box.keys.toList();
+
+  taco.Comment getCommentById(String id) => _box.get(id);
+
+  bool get hasError => this._hasError;
 
   void close() {
-    _httpClient.close();
-    _controller.close();
+    this._incoming?.cancel();
   }
 
-  // TODO at start of stream, grab oldest comments's date time and start downloading
-  //      comments older than that, adding them to the bottom of the stream as they're fetched
-  //      and stopping when we hit the local cache or timedelta hits 24hrs.
-  //      when/if the user scrolls to minextent, we can start loading from the cache
+  Future<void> _freshenComments(List<String> commentIds) {
+    /// reload comment data from reddit and update the box
+  }
 
-  /// streams all of a user's `Objective`s
-  Future<void> _streamComments({int attempt = 0}) async {
-    _controller ??= ReplaySubject<Comment>();
+  Future<void> _prune({Duration maxAge}) {
+    /// start at the oldest entries in the box and prune any whose creation date > maxAge old
+  }
 
-    // init input and output streams as necessary
-    _httpClient = http.Client();
-
-    http.Request request = http.Request(
-        "GET", Uri.parse('http://tacostream-sse.samsite.ca:3000/'));
-    request.headers["Accept"] = "text/event-stream";
-    request.headers["Cache-Control"] = "no-cache";
-    request.headers["Connection"] = "keep-alive";
-
-    Future<http.StreamedResponse> response = _httpClient.send(request);
-    print("Subscribed!");
-    response.catchError((err) {
-      _httpClient.close();
-      if (attempt >= 10) {
-        _controller.addError(http.ClientException(
-            'Unable to contact server after 10 attempts.'));
+  Future<void> _processNewComment(Comment c) async {
+    /// stores comments if they are on the DT
+    // check if this comment's parent submission is the DT
+    if (this.currentDtShortlink == null) {
+      log.debug('jeremiah: currentDtShortlink is null, checking if comment submission is DT.');
+      Submission post = await c.submission.populate();
+      if (post.stickied && post.title == this.postTitle && post.author == this.postAuthor) {
+        log.debug('jeremiah: comment submission is DT, setting currentDtShortlink.');
+        this.currentDtShortlink = post.shortlink;
       }
-      print('error caught: $err. retrying in ${attempt * attempt}s...');
-      if (attempt > 0) sleep(Duration(seconds: attempt * attempt));
-      _streamComments(attempt: attempt + 1);
-    }).then(
-      (streamedResponse) {
-        if (streamedResponse == null) {
-          print('response is null');
-          return;
-        }
-        streamedResponse.stream.listen(
-          (value) {
-            var decodedData;
-            var parsedData;
-            try {
-              decodedData =
-                  utf8.decode(value, allowMalformed: true).substring(5);
-            } catch (e) {
-              print("unable to decode response: $value");
-            }
-            try {
-              parsedData = json.decode(decodedData) as Map<String, dynamic>;
-            } catch (e) {
-              print("unable to parse json: $decodedData");
-            }
+    }
+    // store comment
+    if (c.submission.shortlink == this.currentDtShortlink) {
+      if (c.data == null) await c.populate();
+      // log.debug('jeremiah: putting comment: $c');
+      final comment = taco.Comment.fromDrawComment(c);
 
-            if (parsedData != null) {
-              final comment = Comment.fromMap(parsedData);
-              indexedCache[comment.id] = comment;
-              if (indexedCache.length % 100 == 0)
-                print("status: ${indexedCache.length} items in cache");
-              _controller.add(indexedCache[comment.id]);
-            }
-          },
-          onDone: () {
-            _httpClient.close();
-            _controller.close();
-            print("The streamresponse is ended");
-          },
-        );
-      },
-    );
+      this._box.put(c.id, comment);
+    }
+  }
+
+  _listenForNewComments() {
+    /// listens for new comments in the sub and grabs any posted to the DT
+    this._incoming = this
+        ._reddit
+        .subreddit(this.subreddit)
+        .stream
+        .comments(pauseAfter: 10)
+        .listen((Comment c) => this._processNewComment(c), onError: (e) {
+      this._hasError = true;
+      log.error('jeremiah: new comment stream encountered an error: $e');
+    }, onDone: () {
+      log.info('jeremiah: new comment listener closed (done).');
+      this._listenForNewComments();
+    });
+  }
+
+  Future<void> _crawlPastComments() {
+    /// chug through comments from `before` the first one streamed in
+    /// https://pub.dev/documentation/draw/latest/draw/CommentForest-class.html
   }
 }

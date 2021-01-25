@@ -12,23 +12,25 @@ class ThemeService extends ChangeNotifier with BaseService {
 
   ThemeService(this.box);
 
-  void shuffleTheme() {
-    var idx = themes.indexOf(_currentBaseTheme);
-    var newIdx = idx == themes.length - 1 ? 0 : idx + 1;
-    box.put('currentTheme', themes[newIdx].name);
+  void setTheme(themeName) {
+    box.put('currentTheme', themeName);
     print("new theme: $currentTheme");
     notifyListeners();
   }
 
-  MarkdownStyleSheet get currentMarkdown => darkMode
-      ? _currentBaseTheme.markdownDark
-      : _currentBaseTheme.markdownLight;
+  void shuffleTheme() {
+    var idx = themes.indexOf(currentBaseTheme);
+    var newIdx = idx == themes.length - 1 ? 0 : idx + 1;
+    setTheme(themes[newIdx].name);
+  }
 
-  ThemeData get currentTheme =>
-      _getTheme(box.get('currentTheme', defaultValue: ""));
+  MarkdownStyleSheet get currentMarkdown =>
+      darkMode ? currentBaseTheme.markdownDark : currentBaseTheme.markdownLight;
 
-  BaseTheme get _currentBaseTheme =>
-      _getBaseTheme(box.get('currentTheme', defaultValue: ""));
+  ThemeData get currentTheme => _getTheme(box.get('currentTheme', defaultValue: ""));
+
+  BaseTheme get currentBaseTheme =>
+      _getBaseTheme(box.get('currentTheme', defaultValue: "Washington"));
 
   ThemeData _getTheme(themeName) {
     BaseTheme theme = _getBaseTheme(themeName) ?? themes[0];

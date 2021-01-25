@@ -7,7 +7,8 @@
         {
             "name": "tacostream",
             "request": "launch",
-            "type": "dart"
+            "type": "dart",
+            "flutterMode": "debug"
         }
     ]
 }

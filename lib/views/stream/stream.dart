@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:get_it/get_it.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:hive/hive.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:tacostream/models/comment.dart';
 
@@ -26,17 +27,13 @@ class _StreamViewState extends State<StreamView> {
   bool pinToTop = true;
   IconData pinIcon = FontAwesomeIcons.arrowCircleUp;
   ScrollController scrollController;
-  ReplaySubject<Comment> streamController;
 
   @override
   void initState() {
     super.initState();
-    streamController = jeremiah.controller;
     scrollController = ScrollController(keepScrollOffset: false);
     scrollController.addListener(() {
-      if (scrollController.position.userScrollDirection ==
-              ScrollDirection.forward &&
-          pinToTop) {
+      if (scrollController.position.userScrollDirection == ScrollDirection.forward && pinToTop) {
         togglePin();
       }
       if (atMaxExtent() && !pinToTop) {
@@ -47,9 +44,8 @@ class _StreamViewState extends State<StreamView> {
 
   @override
   void dispose() {
-    this.streamController.close();
+    this.jeremiah.close();
     this.scrollController.dispose();
-    jeremiah.close();
     super.dispose();
   }
 
@@ -77,27 +73,21 @@ class _StreamViewState extends State<StreamView> {
 
   void animateToTop() {
     if (!atMaxExtent() && !scrollController.position.isScrollingNotifier.value)
-      this.scrollController.animateTo(
-          this.scrollController.position.maxScrollExtent,
-          duration: Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn);
+      this.scrollController.animateTo(this.scrollController.position.maxScrollExtent,
+          duration: Duration(milliseconds: 500), curve: Curves.fastOutSlowIn);
   }
 
   void togglePin() {
     setState(() {
       pinToTop = pinToTop ? false : true;
-      pinIcon = pinToTop
-          ? FontAwesomeIcons.arrowCircleUp
-          : FontAwesomeIcons.arrowAltCircleUp;
+      pinIcon = pinToTop ? FontAwesomeIcons.arrowCircleUp : FontAwesomeIcons.arrowAltCircleUp;
     });
     if (pinToTop) animateToTop();
   }
 
   @override
   Widget build(BuildContext context) {
-    var pinColor = pinToTop
-        ? Theme.of(context).accentColor
-        : Theme.of(context).disabledColor;
+    var pinColor = pinToTop ? Theme.of(context).accentColor : Theme.of(context).disabledColor;
 
     return Scaffold(
       appBar: AppBar(
@@ -106,8 +96,8 @@ class _StreamViewState extends State<StreamView> {
           IconButton(
             icon: Icon(FontAwesomeIcons.cog),
             color: Theme.of(context).accentColor,
-            onPressed: () => Navigator.of(context)
-                .push(MaterialPageRoute(builder: (context) => SettingsView())),
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute(builder: (context) => SettingsView())),
           ),
           IconButton(
             icon: Icon(FontAwesomeIcons.palette),
@@ -115,9 +105,7 @@ class _StreamViewState extends State<StreamView> {
             onPressed: themeService.shuffleTheme,
           ),
           IconButton(
-              icon: Icon(themeService.darkMode
-                  ? Icons.lightbulb_outline
-                  : Icons.lightbulb),
+              icon: Icon(themeService.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
               color: themeService.darkMode
                   ? Theme.of(context).disabledColor
                   : Theme.of(context).accentColor,
@@ -130,10 +118,10 @@ class _StreamViewState extends State<StreamView> {
         ],
       ),
       body: Center(
-          child: StreamBuilder<Object>(
-              stream: streamController.stream,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
+          child: ValueListenableBuilder(
+              valueListenable: this.jeremiah.listenable,
+              builder: (context, Box box, _) {
+                if (this.jeremiah.hasError) {
                   return Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                     Icon(
@@ -148,13 +136,12 @@ class _StreamViewState extends State<StreamView> {
                     SizedBox.fromSize(
                       size: Size(10, 10),
                     ),
-                    Text(
-                        "Looks like our servers are down or this device is offline.",
+                    Text("Looks like our servers are down or this device is offline.",
                         style: Theme.of(context).textTheme.bodyText2)
                   ]));
                 }
 
-                if (!snapshot.hasData) {
+                if (box.isEmpty) {
                   return Center(
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
                     SpinKitDoubleBounce(
@@ -173,23 +160,17 @@ class _StreamViewState extends State<StreamView> {
                     padding: EdgeInsets.all(0),
                     shrinkWrap: true,
                     reverse: true,
-                    itemCount: streamController.values.length,
+                    itemCount: box.values.length,
                     itemBuilder: (context, index) {
-                      if (streamController.values.length == 0 ||
-                          streamController.values[index] == null) {
-                        return SizedBox.shrink();
-                      }
-
-                      var comment = streamController.values[index];
+                      var comment = box.values.elementAt(index);
                       try {
                         if (pinToTop)
-                          SchedulerBinding.instance
-                              .addPostFrameCallback((_) => animateToTop());
+                          SchedulerBinding.instance.addPostFrameCallback((_) => animateToTop());
                       } catch (e) {
                         print(e);
                       }
 
-                      return CommentWidget(comment);
+                      return CommentWidget(comment: comment);
                     });
               })),
     );

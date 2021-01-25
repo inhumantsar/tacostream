@@ -5,38 +5,31 @@ import 'package:auto_size_text/auto_size_text.dart';
 import 'package:tacostream/services/flairmoji.dart';
 
 class Flair extends StatelessWidget {
-  final String rawFlairText;
-  final flairmojiRegex = new RegExp(r":([-a-zA-Z0-9]+):");
+  final String flairText;
+  final String flairImageUrl;
 
-  Flair(this.rawFlairText);
+  Flair(this.flairText, this.flairImageUrl);
 
   @override
   Widget build(BuildContext context) {
     var widgets = <Widget>[];
 
-    for (var element in rawFlairText.split(':')) {
-      var flairText = element.trim();
-      // add image if there's a flairmoji match
-      if (flairmoji.containsKey(flairText)) {
-        widgets.add(
-          Padding(
-              padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
-              child:
-                  Image(image: NetworkImage(flairmoji[flairText]), width: 25)),
-        );
-        // add text otherwise
-      } else {
-        widgets.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
-          child: AutoSizeText(flairText,
-              maxLines: 1,
-              textScaleFactor: .8,
-              textAlign: TextAlign.start,
-              style: TextStyle(
-                  color:
-                      Theme.of(context).colorScheme.onSurface.withAlpha(130))),
-        ));
-      }
+    if (this.flairImageUrl != null && this.flairImageUrl != "") {
+      widgets.add(
+        Padding(
+            padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
+            child: Image(image: NetworkImage(this.flairImageUrl), width: 25)),
+      );
+    }
+    if (this.flairText != null) {
+      widgets.add(Padding(
+        padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 2),
+        child: AutoSizeText(flairText,
+            maxLines: 1,
+            textScaleFactor: .9,
+            textAlign: TextAlign.start,
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withAlpha(130))),
+      ));
     }
 
     return Flex(
