@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
+import 'package:package_info/package_info.dart';
 import 'package:tacostream/core/base/service.dart';
 import 'package:tacostream/models/comment.dart' as taco;
 import 'package:hive_flutter/hive_flutter.dart';
@@ -10,15 +11,20 @@ import 'package:draw/draw.dart';
 
 class Jeremiah extends ChangeNotifier with BaseService {
   final Box<taco.Comment> _box;
-  final Reddit _reddit;
+  final Box _prefsBox;
+  Reddit _reddit;
   final String subreddit = 'neoliberal';
   final String postTitle = 'Discussion Thread';
   final String postAuthor = 'jobautomator';
   StreamSubscription _incoming;
   var currentDtShortlink;
-  var _hasError = false;
+  DateTime currentDtExpiration;
 
-  Jeremiah(this._box, this._reddit);
+  JeremiahError _error;
+  int _reconnectAttempts = 0;
+  DateTime _lastReconnect;
+
+  Jeremiah(this._box, this._prefsBox);
 
   Listenable get listenable {
     this._incoming ?? _listenForNewComments();
@@ -30,59 +36,108 @@ class Jeremiah extends ChangeNotifier with BaseService {
 
   taco.Comment getCommentById(String id) => _box.get(id);
 
-  bool get hasError => this._hasError;
+  JeremiahError get error => this._error;
+
+  DateTime get nextReconnectTime =>
+      this._lastReconnect?.add(Duration(seconds: _reconnectAttempts * 3)) ??
+      DateTime.now().subtract(Duration(days: 1));
+
+  void reconnect() {
+    this._lastReconnect = DateTime.now();
+    log.debug('new lastReconnect: ${this._lastReconnect}');
+    this._reconnectAttempts++;
+    log.debug('new reconnectAttempts: ${this._reconnectAttempts}');
+    this._incoming?.cancel();
+    this._incoming = null;
+    this._reddit = null;
+    this._listenForNewComments();
+  }
 
   void close() {
     this._incoming?.cancel();
   }
 
-  Future<void> _freshenComments(List<String> commentIds) {
-    /// reload comment data from reddit and update the box
-  }
-
-  Future<void> _prune({Duration maxAge}) {
-    /// start at the oldest entries in the box and prune any whose creation date > maxAge old
-  }
-
-  Future<void> _processNewComment(Comment c) async {
-    /// stores comments if they are on the DT
+  Future<bool> _commentIsOnDt(Comment c) async {
     // check if this comment's parent submission is the DT
-    if (this.currentDtShortlink == null) {
-      log.debug('jeremiah: currentDtShortlink is null, checking if comment submission is DT.');
+    final isDtExpired = this.currentDtExpiration?.isBefore(DateTime.now()) ?? false;
+    if (this.currentDtShortlink == null || isDtExpired) {
+      log.debug('jeremiah: currentDt is unknown/expired, checking if submission is DT.');
       Submission post = await c.submission.populate();
       if (post.stickied && post.title == this.postTitle && post.author == this.postAuthor) {
         log.debug('jeremiah: comment submission is DT, setting currentDtShortlink.');
         this.currentDtShortlink = post.shortlink;
+        this.currentDtExpiration = post.createdUtc.add(Duration(days: 1));
       }
     }
-    // store comment
-    if (c.submission.shortlink == this.currentDtShortlink) {
-      if (c.data == null) await c.populate();
-      // log.debug('jeremiah: putting comment: $c');
-      final comment = taco.Comment.fromDrawComment(c);
 
-      this._box.put(c.id, comment);
-    }
+    if (c.submission.shortlink == this.currentDtShortlink)
+      return true;
+    else
+      return false;
   }
 
-  _listenForNewComments() {
+  Future<Comment> _newCommentsFilter(Comment c) async => await this._commentIsOnDt(c) ? c : null;
+  void _newCommentsDone() => log.info('jeremiah: new comment listener closed (done).');
+
+  Future<void> _newCommentsStore(Comment c) async {
+    /// stores comments if they are on the DT
+    if (c.data == null) await c.populate();
+    final comment = taco.Comment.fromDrawComment(c);
+    this._box.put(c.id, comment);
+  }
+
+  void _newCommentsError(Object e, [StackTrace stackTrace]) {
+    log.error('jeremiah: new comment stream encountered an error: $e');
+    if (e.toString().contains("SocketException"))
+      this._error = JeremiahError.NoConnection;
+    else
+      this._error = JeremiahError.Unknown;
+  }
+
+  void _newCommentsListener(Comment c) {
+    this._error = null;
+    this._reconnectAttempts = 0;
+    this._newCommentsStore(c);
+  }
+
+  _listenForNewComments() async {
     /// listens for new comments in the sub and grabs any posted to the DT
+
+    this._reddit ??= await _authReddit();
+    if (this._reddit == null) {
+      this._error = JeremiahError.NoRedditAuth;
+      return;
+    }
+
     this._incoming = this
         ._reddit
         .subreddit(this.subreddit)
         .stream
         .comments(pauseAfter: 10)
-        .listen((Comment c) => this._processNewComment(c), onError: (e) {
-      this._hasError = true;
-      log.error('jeremiah: new comment stream encountered an error: $e');
-    }, onDone: () {
-      log.info('jeremiah: new comment listener closed (done).');
-      this._listenForNewComments();
-    });
+        .asyncMap(this._newCommentsFilter)
+        .where((Comment c) => c != null)
+        .listen(this._newCommentsListener,
+            onError: this._newCommentsError, onDone: this._newCommentsDone);
   }
 
-  Future<void> _crawlPastComments() {
-    /// chug through comments from `before` the first one streamed in
-    /// https://pub.dev/documentation/draw/latest/draw/CommentForest-class.html
+  Future<Reddit> _authReddit() async {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+    String versionName = packageInfo.version;
+    String versionCode = packageInfo.buildNumber;
+    String packageName = packageInfo.packageName;
+    final userAgent = 'android:$packageName:v$versionName.$versionCode (by /u/inhumantsar)';
+    final deviceId = this._prefsBox.get('deviceId');
+    print("userAgent: $userAgent");
+    print("deviceId: $deviceId");
+
+    try {
+      return await Reddit.createUntrustedReadOnlyInstance(
+          clientId: 'GW3D4HqPspIgtA', deviceId: deviceId, userAgent: userAgent);
+    } catch (e) {
+      log.error(e);
+    }
+    return null;
   }
 }
+
+enum JeremiahError { NoConnection, NoRedditAuth, Unknown }
