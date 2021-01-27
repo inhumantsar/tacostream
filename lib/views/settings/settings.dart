@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:tacostream/widgets/comment/comment.dart';
-import 'package:clippy_flutter/clippy_flutter.dart';
 import 'package:tacostream/widgets/theme_picker/theme_picker.dart';
+import 'package:flutter_xlider/flutter_xlider.dart';
 
 class SettingsView extends StatelessWidget {
   @override
@@ -13,8 +13,8 @@ class SettingsView extends StatelessWidget {
         appBar: AppBar(
           actions: [],
         ),
-        body: Consumer<ThemeService>(
-            builder: (context, themeService, widget) => SingleChildScrollView(
+        body: Consumer2<Jeremiah, ThemeService>(
+            builder: (context, jeremiah, themeService, widget) => SingleChildScrollView(
                   child: Padding(
                       padding: EdgeInsets.fromLTRB(8, 16, 8, 4),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -128,10 +128,39 @@ class SettingsView extends StatelessWidget {
                           ],
                         ),
                         Divider(),
-
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text('Themes'),
+                        ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),
                           child: ThemePickerWidget(),
+                        ),
+                        Divider(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text('Advanced', style: Theme.of(context).textTheme.bodyText1),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Row(children: [
+                            Text('Cache limit:'),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: new DropdownButton<int>(
+                                value: jeremiah.boxLimit,
+                                items: <int>[100, 1000, 10000, 100000].map((int value) {
+                                  return new DropdownMenuItem<int>(
+                                    value: value,
+                                    child: new Text(value.toString()),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => jeremiah.boxLimit = value,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text('Lower is Faster', style: themeService.theme.textTheme.caption)
+                          ]),
                         ),
                         // Divider(),
                         // Row(children: [

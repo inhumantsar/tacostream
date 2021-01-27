@@ -46,44 +46,48 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse hendrerit n
     return level > 4
         ? SizedBox.shrink()
         : Consumer2<Jeremiah, ThemeService>(builder: (context, jeremiah, themeService, widget) {
-            return Column(children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-                child: Flex(direction: Axis.vertical, mainAxisSize: MainAxisSize.min, children: [
-                  // if parent_id starts with t1, then this is a reply and we
-                  // should fetch the parent
-                  !c.parentId.startsWith('t1_') ||
-                          !jeremiah.commentIds.contains(c.parentId.substring(3))
-                      ? SizedBox.shrink()
-                      : Container(
-                          margin: EdgeInsets.fromLTRB(12, 4, 12, 12),
-                          child: ParentWidget(
-                              child: c,
-                              customMarkdownSS: this.mdTheme ?? themeService.mdTheme,
-                              customTheme: this.theme ?? themeService.theme),
-                        ),
-                  GestureDetector(
-                      onTap: () => _launchUrl("https://reddit.com" + c.permalink),
-                      child: Row(children: [
+            return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _launchUrl("https://reddit.com" + c.permalink),
+                child: Column(children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+                    child:
+                        Flex(direction: Axis.vertical, mainAxisSize: MainAxisSize.min, children: [
+                      // if parent_id starts with t1, then this is a reply and we
+                      // should fetch the parent
+                      !c.parentId.startsWith('t1_') ||
+                              !jeremiah.commentIds.contains(c.parentId.substring(3))
+                          ? SizedBox.shrink()
+                          : Container(
+                              margin: EdgeInsets.fromLTRB(12, 4, 12, 12),
+                              child: ParentWidget(
+                                  child: c,
+                                  customMarkdownSS: this.mdTheme ?? themeService.mdTheme,
+                                  customTheme: this.theme ?? themeService.theme),
+                            ),
+                      Row(children: [
                         Expanded(
                             child: MarkdownBody(
                           styleSheet: mdTheme ?? themeService.mdTheme,
                           data: c.body ?? "",
                           onTapLink: (text, href, title) => _launchUrl(href),
                         ))
-                      ])),
-                  Container(
-                    alignment: Alignment.centerLeft,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 4, 4, 0),
-                      child: Author(c.author, c.authorFlairText, c.authorFlairImageUrl,
-                          customTheme: theme),
-                    ),
-                  )
-                ]),
-              ),
-              Divider(),
-            ]);
+                      ]),
+                      GestureDetector(
+                          onTap: () => _launchUrl("https://reddit.com/u/" + c.author),
+                          child: Container(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(0, 4, 4, 0),
+                              child: Author(c.author, c.authorFlairText, c.authorFlairImageUrl,
+                                  customTheme: theme),
+                            ),
+                          ))
+                    ]),
+                  ),
+                  Divider(),
+                ]));
           });
   }
 }

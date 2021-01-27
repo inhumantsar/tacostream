@@ -31,8 +31,8 @@ class ParentWidget extends StatelessWidget {
       markdownSS = markdownSS.copyWith(p: themeData.textTheme.caption);
 
       final parent = jeremiah.getCommentById(child.parentId.substring(3));
-      var parentBody = parent.body;
-      if (parentBody.length > 280) parentBody = parentBody.substring(0, 280) + '...';
+      var parentBody =
+          parent.body.length < 280 ? parent.body : parent.body.substring(0, 280) + '...';
 
       return GestureDetector(
           onTap: () => _launchUrl("https://reddit.com" + parent.permalink),

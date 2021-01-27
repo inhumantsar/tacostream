@@ -39,6 +39,7 @@ dependencies:
   flutter_markdown: ^0.5.0
   flutter_platform_widgets: ^0.71.0
   flutter_spinkit: ^4.1.2+1
+  flutter_xlider: ^3.4.0
   font_awesome_flutter: ^8.10.0
   get_it: ^5.0.1
   hive: ^1.4.4+1

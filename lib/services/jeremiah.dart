@@ -24,7 +24,40 @@ class Jeremiah extends ChangeNotifier with BaseService {
   int _reconnectAttempts = 0;
   DateTime _lastReconnect;
 
-  Jeremiah(this._box, this._prefsBox);
+  Timer rateLogger;
+  int _incomingRateCounter = 0;
+  static const int rateLoggerInterval = 10;
+  Timer statusLogger;
+  static const int statusLoggerInterval = 30;
+  Timer janitor;
+  static const int janitorInterval = 60;
+
+  Jeremiah(this._box, this._prefsBox) {
+    this.rateLogger = Timer.periodic(const Duration(seconds: rateLoggerInterval), (timer) {
+      log.info("incoming: ${(this._incomingRateCounter / rateLoggerInterval) * 60} cpm");
+      this._incomingRateCounter = 0;
+    });
+
+    this.statusLogger = Timer.periodic(const Duration(seconds: statusLoggerInterval), (timer) {
+      log.info('stored comments: ${this.commentIds.length}');
+    });
+
+    this.janitor = Timer.periodic(const Duration(seconds: janitorInterval), (timer) {
+      if (this.commentIds.length > this.boxLimit) {
+        var delCount = this.commentIds.length - this.boxLimit;
+        log.info("pruning $delCount oldest records.");
+        this._box.deleteAll(this.commentIds.sublist(0, delCount));
+        this.notifyListeners();
+      }
+    });
+  }
+
+  int get boxLimit => this._prefsBox.get('boxLimit', defaultValue: 1000);
+  set boxLimit(int limit) {
+    this._prefsBox.put('boxLimit', limit);
+    log.info('boxLimit updated: ${this.boxLimit}');
+    this.notifyListeners();
+  }
 
   Listenable get listenable {
     this._incoming ?? _listenForNewComments();
@@ -54,6 +87,9 @@ class Jeremiah extends ChangeNotifier with BaseService {
   }
 
   void close() {
+    this.statusLogger.cancel();
+    this.janitor.cancel();
+    this.rateLogger.cancel();
     this._incoming?.cancel();
   }
 
@@ -70,6 +106,11 @@ class Jeremiah extends ChangeNotifier with BaseService {
       }
     }
 
+    if (c == null) {
+      log.warning('received a null commnet');
+      return false;
+    }
+
     if (c.submission.shortlink == this.currentDtShortlink)
       return true;
     else
@@ -83,6 +124,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
     /// stores comments if they are on the DT
     if (c.data == null) await c.populate();
     final comment = taco.Comment.fromDrawComment(c);
+    _incomingRateCounter++;
     this._box.put(c.id, comment);
   }
 
@@ -113,7 +155,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
         ._reddit
         .subreddit(this.subreddit)
         .stream
-        .comments(pauseAfter: 10)
+        .comments(pauseAfter: 3)
         .asyncMap(this._newCommentsFilter)
         .where((Comment c) => c != null)
         .listen(this._newCommentsListener,

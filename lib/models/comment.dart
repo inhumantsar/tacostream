@@ -94,17 +94,23 @@ class Comment extends BaseModel {
   static Comment fromDrawComment(draw.Comment c) {
     // richtext flairs helpfully provide the image url, but we need to do some work to get it
     var authorFlairImageUrl = "";
-    var authorFlairText = c.authorFlairText;
+    var authorFlairText = c.authorFlairText ?? "";
     if (c.data.containsKey('author_flair_richtext')) {
       List flair = c.data['author_flair_richtext'];
       flair.forEach((f) {
         if (f['e'] == "text") authorFlairText = f['t'];
         if (f['e'] == "emoji") authorFlairImageUrl = f['u'];
       });
-      log.debug('flair: $authorFlairText $authorFlairImageUrl');
     }
 
     var body = htmlUnescape.convert(c.body);
+
+    log.debug('fromDraw: ' +
+        "id ${c.id} / " +
+        "${c.author} / " +
+        '🏷️${authorFlairText.isEmpty ? "❌" : "✅"}' +
+        '📷${authorFlairImageUrl.isEmpty ? "❌" : "✅"} / ' +
+        "${c.body.length} chars");
 
     return Comment(
         id: c.id,
