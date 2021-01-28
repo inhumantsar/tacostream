@@ -25,9 +25,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
   JeremiahError _error;
   bool _reconnecting = false;
 
-  Timer rateLogger;
   int _incomingRateCounter = 0;
-  static const int rateLoggerInterval = 10;
   Timer statusLogger;
   static const int statusLoggerInterval = 30;
   Timer janitor;
@@ -35,7 +33,14 @@ class Jeremiah extends ChangeNotifier with BaseService {
   Timer netMon;
   static const int netMonInterval = 10;
 
+  bool _clearingCache = false;
+  bool get clearingCache => this._clearingCache;
+
   Jeremiah(this._box, this._prefsBox) {
+    if (this.clearCacheAtStartup) {
+      this.clearCache();
+    }
+
     this.statusLogger = Timer.periodic(const Duration(seconds: statusLoggerInterval), (timer) {
       log.info("incoming: ${(this._incomingRateCounter / statusLoggerInterval) * 60} cpm");
       this._incomingRateCounter = 0;
@@ -70,6 +75,15 @@ class Jeremiah extends ChangeNotifier with BaseService {
     });
   }
 
+  Future<void> clearCache() async {
+    log.info('clearing cache.');
+    this._clearingCache = true;
+    notifyListeners();
+    await this._box.deleteAll(this.commentIds);
+    this._clearingCache = false;
+    notifyListeners();
+  }
+
   Future<bool> get hasInternet async {
     var result = [];
     try {
@@ -85,6 +99,13 @@ class Jeremiah extends ChangeNotifier with BaseService {
   set boxLimit(int limit) {
     this._prefsBox.put('boxLimit', limit);
     log.info('boxLimit updated: ${this.boxLimit}');
+    this.notifyListeners();
+  }
+
+  bool get clearCacheAtStartup => this._prefsBox.get('clearCacheAtStartup', defaultValue: true);
+  set clearCacheAtStartup(bool value) {
+    this._prefsBox.put('clearCacheAtStartup', value);
+    log.info('clearCacheAtStartup updated: ${this.clearCacheAtStartup}');
     this.notifyListeners();
   }
 

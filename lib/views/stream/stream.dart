@@ -88,19 +88,10 @@ class _StreamViewState extends State<StreamView> {
     var pinColor = pinToTop ? Theme.of(context).accentColor : Theme.of(context).disabledColor;
 
     return Consumer2<ThemeService, Jeremiah>(builder: (context, themeService, jeremiah, widget) {
-      // jeremiah.error.addListener(() {
-      //   log.error('jeremiah is reporting an error: ${jeremiah.error.value}');
-      // });
-
       return Scaffold(
           appBar: AppBar(
             title: Text("🌮 tacostream"),
             actions: [
-              // ? SizedBox.shrink()
-              // : IconButton(
-              //     icon: Icon(Icons.wifi_off),
-              //     color: Theme.of(context).errorColor,
-              //     onPressed: null),
               IconButton(
                 icon: Icon(FontAwesomeIcons.cog),
                 color: Theme.of(context).accentColor,
@@ -173,7 +164,7 @@ class _StreamViewState extends State<StreamView> {
                       ]));
                     }
 
-                    if (jeremiah.commentIds.length < 5) {
+                    if (jeremiah.commentIds.length < 5 || jeremiah.clearingCache) {
                       return Center(
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                         SpinKitDoubleBounce(

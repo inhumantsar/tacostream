@@ -142,9 +142,13 @@ class SettingsView extends StatelessWidget {
                           child: Text('Advanced', style: Theme.of(context).textTheme.bodyText1),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(children: [
-                            Text('Cache limit:'),
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Cache limit:'),
+                              Text('Lower is Faster', style: themeService.theme.textTheme.caption)
+                            ]),
+                            const Spacer(),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8.0),
                               child: new DropdownButton<int>(
@@ -158,9 +162,21 @@ class SettingsView extends StatelessWidget {
                                 onChanged: (value) => jeremiah.boxLimit = value,
                               ),
                             ),
-                            const Spacer(),
-                            Text('Lower is Faster', style: themeService.theme.textTheme.caption)
                           ]),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: GestureDetector(
+                              onTap: () =>
+                                  jeremiah.clearCacheAtStartup = !jeremiah.clearCacheAtStartup,
+                              child: Row(children: [
+                                Text('Clear cache at startup'),
+                                const Spacer(),
+                                Checkbox(
+                                    value: jeremiah.clearCacheAtStartup,
+                                    onChanged: (value) => jeremiah.clearCacheAtStartup = value),
+                                // Text('', style: themeService.theme.textTheme.caption)
+                              ])),
                         ),
                         // Divider(),
                         // Row(children: [
