@@ -1,5 +1,6 @@
 // Jeremiah - DT Streaming
 
+import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -20,9 +21,9 @@ class Jeremiah extends ChangeNotifier with BaseService {
   var currentDtShortlink;
   DateTime currentDtExpiration;
 
+  // ValueNotifier hasError = ValueNotifier(false);
   JeremiahError _error;
-  int _reconnectAttempts = 0;
-  DateTime _lastReconnect;
+  bool _reconnecting = false;
 
   Timer rateLogger;
   int _incomingRateCounter = 0;
@@ -31,15 +32,16 @@ class Jeremiah extends ChangeNotifier with BaseService {
   static const int statusLoggerInterval = 30;
   Timer janitor;
   static const int janitorInterval = 60;
+  Timer netMon;
+  static const int netMonInterval = 10;
 
   Jeremiah(this._box, this._prefsBox) {
-    this.rateLogger = Timer.periodic(const Duration(seconds: rateLoggerInterval), (timer) {
-      log.info("incoming: ${(this._incomingRateCounter / rateLoggerInterval) * 60} cpm");
-      this._incomingRateCounter = 0;
-    });
-
     this.statusLogger = Timer.periodic(const Duration(seconds: statusLoggerInterval), (timer) {
+      log.info("incoming: ${(this._incomingRateCounter / statusLoggerInterval) * 60} cpm");
+      this._incomingRateCounter = 0;
       log.info('stored comments: ${this.commentIds.length}');
+      if (this.error != null) log.info('has error: ${this.error}');
+      if (this.reconnecting) log.info('reconnect pending.');
     });
 
     this.janitor = Timer.periodic(const Duration(seconds: janitorInterval), (timer) {
@@ -50,6 +52,33 @@ class Jeremiah extends ChangeNotifier with BaseService {
         this.notifyListeners();
       }
     });
+
+    this.netMon = Timer.periodic(Duration(seconds: netMonInterval), (timer) async {
+      if (await this.hasInternet) {
+        if (this._incoming == null && !this.reconnecting) {
+          reconnect();
+          log.info('internet available, but no stream running, attempting reconnect.');
+        }
+      } else {
+        log.warning('no internet connection');
+        this._error = JeremiahError.NoConnection;
+        if (this._incoming != null) {
+          this.close();
+        }
+        notifyListeners();
+      }
+    });
+  }
+
+  Future<bool> get hasInternet async {
+    var result = [];
+    try {
+      result = await InternetAddress.lookup('google.com');
+    } on SocketException catch (_) {
+      return false;
+    }
+    if (result.isEmpty || result[0].rawAddress.isEmpty) return false;
+    return true;
   }
 
   int get boxLimit => this._prefsBox.get('boxLimit', defaultValue: 1000);
@@ -71,25 +100,26 @@ class Jeremiah extends ChangeNotifier with BaseService {
 
   JeremiahError get error => this._error;
 
-  DateTime get nextReconnectTime =>
-      this._lastReconnect?.add(Duration(seconds: _reconnectAttempts * 3)) ??
-      DateTime.now().subtract(Duration(days: 1));
+  bool get reconnecting => this._reconnecting;
+
+  void reconnected() {
+    this._error = null;
+    this._reconnecting = false;
+  }
 
   void reconnect() {
-    this._lastReconnect = DateTime.now();
-    log.debug('new lastReconnect: ${this._lastReconnect}');
-    this._reconnectAttempts++;
-    log.debug('new reconnectAttempts: ${this._reconnectAttempts}');
+    log.info('attempting reconnect...');
+    this._reconnecting = true;
     this._incoming?.cancel();
     this._incoming = null;
     this._reddit = null;
     this._listenForNewComments();
+    this.notifyListeners();
   }
 
   void close() {
     this.statusLogger.cancel();
     this.janitor.cancel();
-    this.rateLogger.cancel();
     this._incoming?.cancel();
   }
 
@@ -118,7 +148,10 @@ class Jeremiah extends ChangeNotifier with BaseService {
   }
 
   Future<Comment> _newCommentsFilter(Comment c) async => await this._commentIsOnDt(c) ? c : null;
-  void _newCommentsDone() => log.info('jeremiah: new comment listener closed (done).');
+  void _newCommentsDone() {
+    log.info('jeremiah: new comment listener closed (done).');
+    this.reconnect();
+  }
 
   Future<void> _newCommentsStore(Comment c) async {
     /// stores comments if they are on the DT
@@ -134,11 +167,11 @@ class Jeremiah extends ChangeNotifier with BaseService {
       this._error = JeremiahError.NoConnection;
     else
       this._error = JeremiahError.Unknown;
+    // this.reconnect();
   }
 
   void _newCommentsListener(Comment c) {
-    this._error = null;
-    this._reconnectAttempts = 0;
+    if (this.reconnecting) this.reconnected();
     this._newCommentsStore(c);
   }
 
@@ -148,18 +181,20 @@ class Jeremiah extends ChangeNotifier with BaseService {
     this._reddit ??= await _authReddit();
     if (this._reddit == null) {
       this._error = JeremiahError.NoRedditAuth;
-      return;
+      // this.error.value = JeremiahError.NoRedditAuth;
+      this._reconnecting = false;
+      // this.notifyListeners();
+    } else {
+      this._incoming = this
+          ._reddit
+          .subreddit(this.subreddit)
+          .stream
+          .comments(pauseAfter: 3)
+          .asyncMap(this._newCommentsFilter)
+          .where((Comment c) => c != null)
+          .listen(this._newCommentsListener,
+              onError: this._newCommentsError, onDone: this._newCommentsDone);
     }
-
-    this._incoming = this
-        ._reddit
-        .subreddit(this.subreddit)
-        .stream
-        .comments(pauseAfter: 3)
-        .asyncMap(this._newCommentsFilter)
-        .where((Comment c) => c != null)
-        .listen(this._newCommentsListener,
-            onError: this._newCommentsError, onDone: this._newCommentsDone);
   }
 
   Future<Reddit> _authReddit() async {
@@ -176,7 +211,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
       return await Reddit.createUntrustedReadOnlyInstance(
           clientId: 'GW3D4HqPspIgtA', deviceId: deviceId, userAgent: userAgent);
     } catch (e) {
-      log.error(e);
+      log.error("authReddit failed: $e");
     }
     return null;
   }
