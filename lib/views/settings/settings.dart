@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:tacostream/services/watercooler.dart';
 import 'package:tacostream/widgets/theme_picker/theme_picker.dart';
-import 'package:flutter_xlider/flutter_xlider.dart';
 
 class SettingsView extends StatelessWidget {
   @override
@@ -13,8 +12,8 @@ class SettingsView extends StatelessWidget {
         appBar: AppBar(
           actions: [],
         ),
-        body: Consumer2<Jeremiah, ThemeService>(
-            builder: (context, jeremiah, themeService, widget) => SingleChildScrollView(
+        body: Consumer2<Watercooler, ThemeService>(
+            builder: (context, watercooler, themeService, widget) => SingleChildScrollView(
                   child: Padding(
                       padding: EdgeInsets.fromLTRB(8, 16, 8, 4),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -152,14 +151,14 @@ class SettingsView extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8.0),
                               child: new DropdownButton<int>(
-                                value: jeremiah.boxLimit,
+                                value: watercooler.maxCacheSize,
                                 items: <int>[100, 1000, 10000, 100000].map((int value) {
                                   return new DropdownMenuItem<int>(
                                     value: value,
                                     child: new Text(value.toString()),
                                   );
                                 }).toList(),
-                                onChanged: (value) => jeremiah.boxLimit = value,
+                                onChanged: (value) => watercooler.maxCacheSize = value,
                               ),
                             ),
                           ]),
@@ -167,14 +166,14 @@ class SettingsView extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: GestureDetector(
-                              onTap: () =>
-                                  jeremiah.clearCacheAtStartup = !jeremiah.clearCacheAtStartup,
+                              onTap: () => watercooler.clearCacheAtStartup =
+                                  !watercooler.clearCacheAtStartup,
                               child: Row(children: [
                                 Text('Clear cache at startup'),
                                 const Spacer(),
                                 Checkbox(
-                                    value: jeremiah.clearCacheAtStartup,
-                                    onChanged: (value) => jeremiah.clearCacheAtStartup = value),
+                                    value: watercooler.clearCacheAtStartup,
+                                    onChanged: (value) => watercooler.clearCacheAtStartup = value),
                                 // Text('', style: themeService.theme.textTheme.caption)
                               ])),
                         ),

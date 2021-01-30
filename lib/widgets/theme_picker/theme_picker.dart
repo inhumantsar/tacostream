@@ -65,7 +65,7 @@ class ThemePickerWidget extends StatelessWidget {
                           padding: EdgeInsets.all(3),
                           shape: CircleBorder(),
                           child: Icon(
-                              themeService.currentBaseTheme.name == theme.name
+                              themeService.baseTheme.name == theme.name
                                   ? FontAwesomeIcons.solidCheckCircle
                                   : FontAwesomeIcons.circle,
                               size: 16),

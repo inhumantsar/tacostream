@@ -1,230 +1,185 @@
-// Jeremiah - DT Streaming
+// Jeremiah - DT comment ingest pipeline
 
-import 'dart:io';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
+import 'package:get_it/get_it.dart';
 import 'package:package_info/package_info.dart';
 import 'package:tacostream/core/base/service.dart';
+import 'package:tacostream/core/util.dart';
 import 'package:tacostream/models/comment.dart' as taco;
-import 'package:hive_flutter/hive_flutter.dart';
 import 'package:draw/draw.dart';
+import 'package:tacostream/services/jeeves.dart';
+import 'package:tacostream/services/watercooler.dart';
+
+enum IngestStatus {
+  noConnectionError,
+  redditAuthError,
+  unknownError,
+  reconnecting,
+  connected,
+  disconnected
+}
 
 class Jeremiah extends ChangeNotifier with BaseService {
-  final Box<taco.Comment> _box;
-  final Box _prefsBox;
+  final _wc = GetIt.instance<Watercooler>();
+  final _jeeves = GetIt.instance<Jeeves>();
+
   Reddit _reddit;
   final String subreddit = 'neoliberal';
   final String postTitle = 'Discussion Thread';
   final String postAuthor = 'jobautomator';
+
+  IngestStatus _status;
+
   StreamSubscription _incoming;
-  var currentDtShortlink;
+
+  var dtShortlink;
   DateTime currentDtExpiration;
 
-  // ValueNotifier hasError = ValueNotifier(false);
-  JeremiahError _error;
-  bool _reconnecting = false;
+  double _ingestRate = 0;
+  double get ingestRate => _ingestRate;
+  int _ingestRateCounter = 0;
 
-  int _incomingRateCounter = 0;
-  Timer statusLogger;
-  static const int statusLoggerInterval = 30;
-  Timer janitor;
-  static const int janitorInterval = 60;
-  Timer netMon;
-  static const int netMonInterval = 10;
+  Timer statusLogTimer;
+  static const Duration statusLoggerInterval = Duration(seconds: 30);
+  Timer netMonTimer;
+  static const Duration netMonInterval = const Duration(seconds: 10);
 
-  bool _clearingCache = false;
-  bool get clearingCache => this._clearingCache;
+  Iterable<taco.Comment> get comments => _wc.values;
+  Iterable get commentIds => _wc.keys;
+  taco.Comment getCommentById(String id) => _wc.get(id);
 
-  Jeremiah(this._box, this._prefsBox) {
-    if (this.clearCacheAtStartup) {
-      this.clearCache();
-    }
+  IngestStatus get status => _status;
+  WatercoolerStatus get cacheStatus => _wc.status;
 
-    this.statusLogger = Timer.periodic(const Duration(seconds: statusLoggerInterval), (timer) {
-      log.info("incoming: ${(this._incomingRateCounter / statusLoggerInterval) * 60} cpm");
-      this._incomingRateCounter = 0;
-      log.info('stored comments: ${this.commentIds.length}');
-      if (this.error != null) log.info('has error: ${this.error}');
-      if (this.reconnecting) log.info('reconnect pending.');
-    });
-
-    this.janitor = Timer.periodic(const Duration(seconds: janitorInterval), (timer) {
-      if (this.commentIds.length > this.boxLimit) {
-        var delCount = this.commentIds.length - this.boxLimit;
-        log.info("pruning $delCount oldest records.");
-        this._box.deleteAll(this.commentIds.sublist(0, delCount));
-        this.notifyListeners();
-      }
-    });
-
-    this.netMon = Timer.periodic(Duration(seconds: netMonInterval), (timer) async {
-      if (await this.hasInternet) {
-        if (this._incoming == null && !this.reconnecting) {
-          reconnect();
-          log.info('internet available, but no stream running, attempting reconnect.');
-        }
-      } else {
-        log.warning('no internet connection');
-        this._error = JeremiahError.NoConnection;
-        if (this._incoming != null) {
-          this.close();
-        }
-        notifyListeners();
-      }
-    });
+  Jeremiah() {
+    statusLogTimer = Timer.periodic(statusLoggerInterval, statusLogger);
+    netMonTimer = Timer.periodic(netMonInterval, netMon);
   }
 
-  Future<void> clearCache() async {
-    log.info('clearing cache.');
-    this._clearingCache = true;
-    notifyListeners();
-    await this._box.deleteAll(this.commentIds);
-    this._clearingCache = false;
-    notifyListeners();
-  }
-
-  Future<bool> get hasInternet async {
-    var result = [];
-    try {
-      result = await InternetAddress.lookup('google.com');
-    } on SocketException catch (_) {
-      return false;
-    }
-    if (result.isEmpty || result[0].rawAddress.isEmpty) return false;
-    return true;
-  }
-
-  int get boxLimit => this._prefsBox.get('boxLimit', defaultValue: 1000);
-  set boxLimit(int limit) {
-    this._prefsBox.put('boxLimit', limit);
-    log.info('boxLimit updated: ${this.boxLimit}');
-    this.notifyListeners();
-  }
-
-  bool get clearCacheAtStartup => this._prefsBox.get('clearCacheAtStartup', defaultValue: true);
-  set clearCacheAtStartup(bool value) {
-    this._prefsBox.put('clearCacheAtStartup', value);
-    log.info('clearCacheAtStartup updated: ${this.clearCacheAtStartup}');
-    this.notifyListeners();
+  @override
+  void dispose() {
+    netMonTimer.cancel();
+    statusLogTimer.cancel();
+    _incoming?.cancel();
+    super.dispose();
   }
 
   Listenable get listenable {
-    this._incoming ?? _listenForNewComments();
-    return _box.listenable();
+    _incoming ?? _listenForNewComments();
+    return _wc.listenable;
   }
 
-  Iterable<taco.Comment> get comments => _box.values;
-  List get commentIds => _box.keys.toList();
-
-  taco.Comment getCommentById(String id) => _box.get(id);
-
-  JeremiahError get error => this._error;
-
-  bool get reconnecting => this._reconnecting;
-
-  void reconnected() {
-    this._error = null;
-    this._reconnecting = false;
+  void netMon(_) async {
+    /// keeps an eye on the device's internet connection, responds accordingly
+    if (await hasInternet) {
+      if (_status != IngestStatus.reconnecting && _status != IngestStatus.connected) {
+        log.info('connection: $_status, attempting reconnect...');
+        reconnect();
+      }
+    } else {
+      log.warning('no internet connection');
+      _status = IngestStatus.noConnectionError;
+      _incoming?.cancel();
+      notifyListeners();
+    }
   }
 
-  void reconnect() {
-    log.info('attempting reconnect...');
-    this._reconnecting = true;
-    this._incoming?.cancel();
-    this._incoming = null;
-    this._reddit = null;
-    this._listenForNewComments();
-    this.notifyListeners();
+  void statusLogger(_) {
+    /// periodically prints useful information
+    _ingestRate = (_ingestRateCounter / statusLoggerInterval.inSeconds) * 60;
+    _ingestRateCounter = 0;
+    log.info("incoming: $ingestRate cpm");
+    log.info('stored comments: ${comments.length}');
+    log.info('ingestStatus: $status');
   }
 
-  void close() {
-    this.statusLogger.cancel();
-    this.janitor.cancel();
-    this._incoming?.cancel();
+  void reconnect() async {
+    log.info('attempting reconnect');
+    _status = IngestStatus.reconnecting;
+    await _incoming?.cancel();
+    _incoming = null;
+    _reddit = null;
+    _listenForNewComments();
+    notifyListeners();
+  }
+
+  void validateDt(Comment c) async {
+    /// confirm dt metadata is current and valid
+    final isDtExpired = currentDtExpiration?.isBefore(DateTime.now()) ?? false;
+    if (dtShortlink == null || isDtExpired) {
+      log.debug('currentDt is unknown/expired, checking if submission is DT.');
+      Submission post = await c.submission.populate();
+      if (post.stickied && post.title == postTitle && post.author == postAuthor) {
+        dtShortlink = post.shortlink;
+        currentDtExpiration = post.createdUtc.add(Duration(days: 1));
+        log.debug('new dtShortlink: $dtShortlink');
+      }
+    }
   }
 
   Future<bool> _commentIsOnDt(Comment c) async {
-    // check if this comment's parent submission is the DT
-    final isDtExpired = this.currentDtExpiration?.isBefore(DateTime.now()) ?? false;
-    if (this.currentDtShortlink == null || isDtExpired) {
-      log.debug('jeremiah: currentDt is unknown/expired, checking if submission is DT.');
-      Submission post = await c.submission.populate();
-      if (post.stickied && post.title == this.postTitle && post.author == this.postAuthor) {
-        log.debug('jeremiah: comment submission is DT, setting currentDtShortlink.');
-        this.currentDtShortlink = post.shortlink;
-        this.currentDtExpiration = post.createdUtc.add(Duration(days: 1));
-      }
-    }
-
+    /// check if comment is on the current DT, adapting to daily rollovers when necessary.
+    // this happens with surprising frequency
     if (c == null) {
       log.warning('received a null commnet');
       return false;
     }
 
-    if (c.submission.shortlink == this.currentDtShortlink)
-      return true;
-    else
-      return false;
+    validateDt(c);
+    return c.submission.shortlink == dtShortlink ? true : false;
   }
 
-  Future<Comment> _newCommentsFilter(Comment c) async => await this._commentIsOnDt(c) ? c : null;
+  // Comment pipeline
+  Future<Comment> _newCommentsFilter(Comment c) async => await _commentIsOnDt(c) ? c : null;
+
   void _newCommentsDone() {
     log.info('jeremiah: new comment listener closed (done).');
-    this.reconnect();
+    reconnect();
   }
 
   Future<void> _newCommentsStore(Comment c) async {
     /// stores comments if they are on the DT
     if (c.data == null) await c.populate();
     final comment = taco.Comment.fromDrawComment(c);
-    _incomingRateCounter++;
-    this._box.put(c.id, comment);
+    _ingestRateCounter++;
+    _wc.put(c.id, comment);
   }
 
   void _newCommentsError(Object e, [StackTrace stackTrace]) {
     log.error('jeremiah: new comment stream encountered an error: $e');
     if (e.toString().contains("SocketException"))
-      this._error = JeremiahError.NoConnection;
+      _status = IngestStatus.noConnectionError;
     else
-      this._error = JeremiahError.Unknown;
-    // this.reconnect();
-  }
-
-  void _newCommentsListener(Comment c) {
-    if (this.reconnecting) this.reconnected();
-    this._newCommentsStore(c);
+      _status = IngestStatus.unknownError;
   }
 
   _listenForNewComments() async {
     /// listens for new comments in the sub and grabs any posted to the DT
-
-    this._reddit ??= await _authReddit();
-    if (this._reddit == null) {
-      this._error = JeremiahError.NoRedditAuth;
-      // this.error.value = JeremiahError.NoRedditAuth;
-      this._reconnecting = false;
-      // this.notifyListeners();
+    _reddit ??= await _authReddit();
+    if (_reddit == null) {
+      _status = IngestStatus.redditAuthError;
     } else {
-      this._incoming = this
+      _status = IngestStatus.connected;
+      _incoming = this
           ._reddit
-          .subreddit(this.subreddit)
+          .subreddit(subreddit)
           .stream
           .comments(pauseAfter: 3)
-          .asyncMap(this._newCommentsFilter)
+          .asyncMap(_newCommentsFilter)
           .where((Comment c) => c != null)
-          .listen(this._newCommentsListener,
-              onError: this._newCommentsError, onDone: this._newCommentsDone);
+          .listen(_newCommentsStore, onError: _newCommentsError, onDone: _newCommentsDone);
     }
   }
 
+  // reddit
   Future<Reddit> _authReddit() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String versionName = packageInfo.version;
     String versionCode = packageInfo.buildNumber;
     String packageName = packageInfo.packageName;
     final userAgent = 'android:$packageName:v$versionName.$versionCode (by /u/inhumantsar)';
-    final deviceId = this._prefsBox.get('deviceId');
+    final deviceId = _jeeves.deviceId;
     print("userAgent: $userAgent");
     print("deviceId: $deviceId");
 
@@ -237,5 +192,3 @@ class Jeremiah extends ChangeNotifier with BaseService {
     return null;
   }
 }
-
-enum JeremiahError { NoConnection, NoRedditAuth, Unknown }

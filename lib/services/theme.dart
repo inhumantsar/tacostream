@@ -1,32 +1,50 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:hive/hive.dart';
+import 'package:get_it/get_it.dart';
 import 'package:tacostream/core/base/service.dart';
 import 'package:tacostream/core/base/theme.dart';
+import 'package:tacostream/services/jeeves.dart';
 import 'package:tacostream/themes/washington.dart';
 import 'package:tacostream/themes/okayama.dart';
 
+enum FontSize { small, medium, large }
+
 class ThemeService extends ChangeNotifier with BaseService {
-  final Box prefsBox;
+  final _jeeves = GetIt.instance<Jeeves>();
   final List<BaseTheme> themes = <BaseTheme>[WashingtonTheme(), OkayamaTheme()];
-  FontSize _fontSize;
   final fontSizeIndex = {FontSize.small: 14.0, FontSize.medium: 16.0, FontSize.large: 18.0};
   var _themeCache;
   var _mdThemeCache;
 
-  ThemeService(this.prefsBox);
+  ThemeService();
 
-  ThemeData get theme => _getTheme(prefsBox.get('currentTheme', defaultValue: ""));
+  get fontSize => FontSize.values[_jeeves.fontSize];
+  set fontSize(FontSize f) {
+    _jeeves.fontSize = f.index;
+    invalidateCache();
+    notifyListeners();
+  }
 
+  void toggleDarkMode() {
+    _jeeves.toggleDarkMode();
+    invalidateCache();
+    notifyListeners();
+  }
+
+  bool get darkMode => _jeeves.darkMode;
+
+  BaseTheme get baseTheme => _getBaseTheme(_jeeves.currentTheme);
+
+  ThemeData get theme => _getTheme(_jeeves.currentTheme);
   set theme(themeName) {
-    prefsBox.put('currentTheme', themeName);
+    _jeeves.currentTheme = themeName;
     log.debug("new theme: $theme");
     invalidateCache();
     notifyListeners();
   }
 
   void shuffleTheme() {
-    var idx = themes.indexOf(currentBaseTheme);
+    var idx = themes.indexOf(baseTheme);
     var newIdx = idx == themes.length - 1 ? 0 : idx + 1;
     theme = themes[newIdx].name;
   }
@@ -36,8 +54,13 @@ class ThemeService extends ChangeNotifier with BaseService {
     this._mdThemeCache = null;
   }
 
-  BaseTheme get currentBaseTheme =>
-      _getBaseTheme(prefsBox.get('currentTheme', defaultValue: "Washington"));
+  BaseTheme _getBaseTheme(themeName) {
+    for (var theme in themes) {
+      if (theme.name == themeName) return theme;
+    }
+    // fallback
+    return themes[0];
+  }
 
   ThemeData _getTheme(themeName) {
     if (this._themeCache == null) {
@@ -66,7 +89,7 @@ class ThemeService extends ChangeNotifier with BaseService {
 
   MarkdownStyleSheet get mdTheme {
     if (this._mdThemeCache == null) {
-      var mdTheme = darkMode ? currentBaseTheme.markdownDark : currentBaseTheme.markdownLight;
+      var mdTheme = darkMode ? baseTheme.markdownDark : baseTheme.markdownLight;
       log.debug(
           'caching fresh MarkdownStyleSheet with font size: ${this.fontSize} (${this.fontSizeIndex[this.fontSize]})');
       this._mdThemeCache = mdTheme.copyWith(
@@ -84,31 +107,4 @@ class ThemeService extends ChangeNotifier with BaseService {
     }
     return this._mdThemeCache;
   }
-
-  BaseTheme _getBaseTheme(themeName) {
-    for (var theme in themes) {
-      if (theme.name == themeName) return theme;
-    }
-    // fallback
-    return themes[0];
-  }
-
-  get fontSize => FontSize.values[this.prefsBox.get('fontSize', defaultValue: 0)];
-  set fontSize(FontSize f) {
-    this.prefsBox.put('fontSize', f.index);
-    log.debug('new fontSize: ${this.fontSize}');
-    invalidateCache();
-    notifyListeners();
-  }
-
-  void toggleDarkMode() {
-    prefsBox.put('darkMode', darkMode ? false : true);
-    log.debug('dark mode on: ${this.darkMode}');
-    invalidateCache();
-    notifyListeners();
-  }
-
-  bool get darkMode => prefsBox.get('darkMode', defaultValue: false);
 }
-
-enum FontSize { small, medium, large }

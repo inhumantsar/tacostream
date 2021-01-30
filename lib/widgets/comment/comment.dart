@@ -44,7 +44,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse hendrerit n
     final c = comment ?? dummyComment;
 
     return level > 4
-        ? SizedBox.shrink()
+        ? Container()
         : Consumer2<Jeremiah, ThemeService>(builder: (context, jeremiah, themeService, widget) {
             return GestureDetector(
                 behavior: HitTestBehavior.opaque,

@@ -1,4 +1,5 @@
 import 'package:logger/logger.dart';
+import 'package:intl/intl.dart';
 
 class BaseLogger {
   List<Logger> _loggers;
@@ -9,8 +10,7 @@ class BaseLogger {
 
   List<Logger> get loggers => this._loggers;
 
-  void log(Level level, message, [error, StackTrace stackTrace]) =>
-      this.loggers.forEach((e) {
+  void log(Level level, message, [error, StackTrace stackTrace]) => this.loggers.forEach((e) {
         e.log(level, message, error, stackTrace);
       });
   void error(message, [error, StackTrace stackTrace]) =>
@@ -30,7 +30,8 @@ class ConsolePrinter extends LogPrinter {
   List<String> log(LogEvent event) {
     var color = PrettyPrinter.levelColors[event.level];
     var emoji = PrettyPrinter.levelEmojis[event.level];
-    List<String> lines = [color('$emoji $className - ${event.message}')];
+    var nowStr = DateFormat.yMd().add_Hms().format(DateTime.now().toUtc());
+    List<String> lines = [color('$nowStr $emoji $className - ${event.message}')];
     if (event.error != null) {
       lines.add(color('-' * lines[0].length));
       lines.add(color(event.error.toString()));

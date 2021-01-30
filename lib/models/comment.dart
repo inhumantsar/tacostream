@@ -105,12 +105,12 @@ class Comment extends BaseModel {
 
     var body = htmlUnescape.convert(c.body);
 
-    log.debug('fromDraw: ' +
-        "id ${c.id} / " +
-        "${c.author} / " +
-        '🏷️${authorFlairText.isEmpty ? "❌" : "✅"}' +
-        '📷${authorFlairImageUrl.isEmpty ? "❌" : "✅"} / ' +
-        "${c.body.length} chars");
+    // log.debug('fromDraw: ' +
+    //     "id ${c.id} / " +
+    //     "${c.author} / " +
+    //     '🏷️${authorFlairText.isEmpty ? "❌" : "✅"}' +
+    //     '📷${authorFlairImageUrl.isEmpty ? "❌" : "✅"} / ' +
+    //     "${c.body.length} chars");
 
     return Comment(
         id: c.id,

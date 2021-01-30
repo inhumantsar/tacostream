@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
-import 'package:get_it/get_it.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:hive/hive.dart';
-import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/core/base/logger.dart';
-import 'package:tacostream/models/comment.dart';
 
 import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
+import 'package:tacostream/services/watercooler.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
 import 'package:tacostream/views/settings/settings.dart';
 
@@ -87,7 +85,7 @@ class _StreamViewState extends State<StreamView> {
   Widget build(BuildContext context) {
     var pinColor = pinToTop ? Theme.of(context).accentColor : Theme.of(context).disabledColor;
 
-    return Consumer2<ThemeService, Jeremiah>(builder: (context, themeService, jeremiah, widget) {
+    return Consumer3<Watercooler, ThemeService, Jeremiah>(builder: (context, wc, ts, jer, widget) {
       return Scaffold(
           appBar: AppBar(
             title: Text("🌮 tacostream"),
@@ -99,11 +97,10 @@ class _StreamViewState extends State<StreamView> {
                     .push(MaterialPageRoute(builder: (context) => SettingsView())),
               ),
               IconButton(
-                  icon: Icon(themeService.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
-                  color: themeService.darkMode
-                      ? Theme.of(context).disabledColor
-                      : Theme.of(context).accentColor,
-                  onPressed: themeService.toggleDarkMode),
+                  icon: Icon(ts.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
+                  color:
+                      ts.darkMode ? Theme.of(context).disabledColor : Theme.of(context).accentColor,
+                  onPressed: ts.toggleDarkMode),
               IconButton(
                 icon: Icon(pinIcon),
                 color: pinColor,
@@ -113,9 +110,11 @@ class _StreamViewState extends State<StreamView> {
           ),
           body: Center(
               child: ValueListenableBuilder(
-                  valueListenable: jeremiah.listenable,
+                  valueListenable: jer.listenable,
                   builder: (context, Box box, _) {
-                    if (jeremiah.error != null) {
+                    if (jer.status == IngestStatus.noConnectionError ||
+                        jer.status == IngestStatus.reconnecting ||
+                        jer.status == IngestStatus.redditAuthError) {
                       return Center(
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                         Icon(
@@ -144,27 +143,30 @@ class _StreamViewState extends State<StreamView> {
                                   direction: Axis.horizontal,
                                   children: [
                                     Icon(FontAwesomeIcons.redoAlt,
-                                        color: (jeremiah.reconnecting)
+                                        color: (jer.status == IngestStatus.reconnecting)
                                             ? Theme.of(context).disabledColor
                                             : Theme.of(context).textTheme.button.color),
                                     Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Text(
-                                          (jeremiah.reconnecting) ? 'Reconnecting...' : 'Reconnect',
+                                          (jer.status == IngestStatus.reconnecting)
+                                              ? 'Reconnecting...'
+                                              : 'Reconnect',
                                           style: Theme.of(context).textTheme.button.copyWith(
-                                              color: (jeremiah.reconnecting)
+                                              color: (jer.status == IngestStatus.reconnecting)
                                                   ? Theme.of(context).disabledColor
                                                   : Theme.of(context).textTheme.button.color)),
                                     )
                                   ]),
                             ),
-                            onPressed: (jeremiah.reconnecting) ? null : jeremiah.reconnect,
+                            onPressed:
+                                (jer.status == IngestStatus.reconnecting) ? null : jer.reconnect,
                           ),
                         )
                       ]));
                     }
 
-                    if (jeremiah.commentIds.length < 5 || jeremiah.clearingCache) {
+                    if (wc.length < 5 || wc.status == WatercoolerStatus.clearing) {
                       return Center(
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                         SpinKitDoubleBounce(
@@ -180,15 +182,12 @@ class _StreamViewState extends State<StreamView> {
                     return Container(
                         alignment: Alignment.topLeft,
                         child: ListView.builder(
-                            // key: ObjectKey(streamController.values[0]),
                             controller: this.scrollController,
                             padding: EdgeInsets.all(0),
                             shrinkWrap: true,
                             reverse: true,
-                            itemCount: jeremiah.comments.length,
+                            itemCount: wc.length,
                             itemBuilder: (context, index) {
-                              final comment = jeremiah.comments.elementAt(index);
-
                               try {
                                 if (pinToTop)
                                   SchedulerBinding.instance
@@ -197,7 +196,7 @@ class _StreamViewState extends State<StreamView> {
                                 print(e);
                               }
 
-                              return CommentWidget(comment: comment);
+                              return CommentWidget(comment: wc.values.elementAt(index));
                             }));
                   })));
     });

@@ -5,10 +5,11 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/models/comment.dart';
+import 'package:tacostream/services/jeeves.dart';
 import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
+import 'package:tacostream/services/watercooler.dart';
 import 'package:tacostream/views/stream/stream.dart';
-import 'package:uuid/uuid.dart';
 
 GetIt locator = GetIt.instance;
 
@@ -19,18 +20,17 @@ void main() async {
 
   Hive.registerAdapter(CommentAdapter());
   var commentsBox = await Hive.openBox<Comment>('comments');
-  // TODO: stop doing this
-  // await commentsBox.clear();
-
   var prefsBox = await Hive.openBox('prefs');
-  prefsBox.get('deviceId') ?? prefsBox.put('deviceId', Uuid().v4());
-  prefsBox.get('unlockedThemes') ?? prefsBox.put('unlockedThemes', ['Washington', 'Okayama']);
 
-  locator.registerLazySingleton(() => Jeremiah(commentsBox, prefsBox));
-  locator.registerLazySingleton(() => ThemeService(prefsBox));
+  locator.registerLazySingleton(() => Jeeves(prefsBox));
+  locator.registerLazySingleton(() => Jeremiah());
+  locator.registerLazySingleton(() => ThemeService());
+  locator.registerLazySingleton(() => Watercooler(commentsBox));
 
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider.value(value: locator<Jeremiah>()),
+    Provider.value(value: locator<Jeeves>()),
+    Provider.value(value: locator<Watercooler>()),
     ChangeNotifierProvider.value(
       value: locator<ThemeService>(),
     )
