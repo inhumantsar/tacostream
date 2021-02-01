@@ -88,7 +88,7 @@ class _StreamViewState extends State<StreamView> {
     return Consumer3<Watercooler, ThemeService, Jeremiah>(builder: (context, wc, ts, jer, widget) {
       return Scaffold(
           appBar: AppBar(
-            backgroundColor: Theme.of(context).appBarTheme.backgroundColor, // really?
+            backgroundColor: Theme.of(context).appBarTheme.color, // really?
             title: Text("🌮 tacostream"),
             actions: [
               IconButton(

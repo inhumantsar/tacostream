@@ -10,7 +10,7 @@ class DolphinTheme implements BaseTheme {
   ThemeData get dark {
     return ThemeData.from(
             colorScheme: _buildColorScheme(isDark: true), textTheme: _buildTextTheme(isDark: true))
-        .copyWith(appBarTheme: AppBarTheme(backgroundColor: darkBlue));
+        .copyWith(appBarTheme: AppBarTheme(color: darkBlue));
   }
 
   ThemeData get light {

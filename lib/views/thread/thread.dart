@@ -22,7 +22,7 @@ class ThreadView extends StatelessWidget {
     return Consumer2<Jeremiah, ThemeService>(builder: (context, jer, ts, widget) {
       return Scaffold(
           appBar: AppBar(
-            backgroundColor: Theme.of(context).appBarTheme.backgroundColor, // really?
+            backgroundColor: Theme.of(context).appBarTheme.color, // really?
             actions: [],
           ),
           body: SingleChildScrollView(
