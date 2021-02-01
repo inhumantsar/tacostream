@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:tacostream/models/comment.dart';
 import 'package:tacostream/services/jeremiah.dart';
 import 'package:tacostream/services/theme.dart';
+import 'package:tacostream/views/thread/thread.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -35,7 +36,11 @@ class ParentWidget extends StatelessWidget {
           parent.body.length < 280 ? parent.body : parent.body.substring(0, 280) + '...';
 
       return GestureDetector(
-          onTap: () => _launchUrl("https://reddit.com" + parent.permalink),
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            log.debug('Opening thread view with quoted parent: ${parent.runtimeType} ${parent.id}');
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) => ThreadView(parent)));
+          },
           child: Stack(children: [
             Icon(FontAwesomeIcons.quoteLeft,
                 size: 48, color: themeData.disabledColor.withOpacity(0.1)),

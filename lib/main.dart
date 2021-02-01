@@ -30,7 +30,7 @@ void main() async {
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider.value(value: locator<Jeremiah>()),
     Provider.value(value: locator<Jeeves>()),
-    Provider.value(value: locator<Watercooler>()),
+    ChangeNotifierProvider.value(value: locator<Watercooler>()),
     ChangeNotifierProvider.value(
       value: locator<ThemeService>(),
     )

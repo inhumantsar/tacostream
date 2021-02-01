@@ -4,14 +4,23 @@ import 'package:get_it/get_it.dart';
 import 'package:tacostream/core/base/service.dart';
 import 'package:tacostream/core/base/theme.dart';
 import 'package:tacostream/services/jeeves.dart';
+import 'package:tacostream/themes/dolphin.dart';
+import 'package:tacostream/themes/newmexico.dart';
 import 'package:tacostream/themes/washington.dart';
 import 'package:tacostream/themes/okayama.dart';
+import 'package:tacostream/themes/wyoming.dart';
 
 enum FontSize { small, medium, large }
 
 class ThemeService extends ChangeNotifier with BaseService {
   final _jeeves = GetIt.instance<Jeeves>();
-  final List<BaseTheme> themes = <BaseTheme>[WashingtonTheme(), OkayamaTheme()];
+  final List<BaseTheme> themes = <BaseTheme>[
+    WashingtonTheme(),
+    OkayamaTheme(),
+    NewMexicoTheme(),
+    WyomingTheme(),
+    DolphinTheme()
+  ];
   final fontSizeIndex = {FontSize.small: 14.0, FontSize.medium: 16.0, FontSize.large: 18.0};
   var _themeCache;
   var _mdThemeCache;

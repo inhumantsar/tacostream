@@ -88,6 +88,7 @@ class _StreamViewState extends State<StreamView> {
     return Consumer3<Watercooler, ThemeService, Jeremiah>(builder: (context, wc, ts, jer, widget) {
       return Scaffold(
           appBar: AppBar(
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor, // really?
             title: Text("🌮 tacostream"),
             actions: [
               IconButton(
@@ -170,7 +171,7 @@ class _StreamViewState extends State<StreamView> {
                       return Center(
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                         SpinKitDoubleBounce(
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(context).accentColor,
                             size: 300.0,
                             duration: Duration(seconds: 6)),
                         SizedBox.fromSize(
@@ -181,7 +182,8 @@ class _StreamViewState extends State<StreamView> {
 
                     return Container(
                         alignment: Alignment.topLeft,
-                        child: ListView.builder(
+                        child: ListView.separated(
+                            separatorBuilder: (ctx, _) => Divider(),
                             controller: this.scrollController,
                             padding: EdgeInsets.all(0),
                             shrinkWrap: true,

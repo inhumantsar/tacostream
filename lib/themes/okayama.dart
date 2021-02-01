@@ -9,8 +9,7 @@ class OkayamaTheme implements BaseTheme {
 
   ThemeData get dark {
     return ThemeData.from(
-            colorScheme: _buildColorScheme(isDark: true),
-            textTheme: _buildTextTheme(isDark: true))
+            colorScheme: _buildColorScheme(isDark: true), textTheme: _buildTextTheme(isDark: true))
         .copyWith(
       dividerColor: lilac[400],
       buttonColor: vividSkyBlue[600],
@@ -34,13 +33,13 @@ class OkayamaTheme implements BaseTheme {
 
   TextTheme _buildTextTheme({bool isDark}) {
     var baseTheme = isDark ? ThemeData.dark() : ThemeData.light();
-    return baseTheme.textTheme.copyWith(
-        bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
+    return baseTheme.textTheme
+        .copyWith(bodyText2: baseTheme.textTheme.bodyText2.copyWith(fontSize: 12));
   }
 
   ColorScheme _buildColorScheme({bool isDark = false}) => ColorScheme(
       primary: crownRoyal,
-      primaryVariant: crownRoyal,
+      primaryVariant: crownRoyal[100],
       secondary: mikadoYellow,
       secondaryVariant: isDark ? vividSkyBlue : violet,
       surface: isDark ? crownRoyal : lilac,

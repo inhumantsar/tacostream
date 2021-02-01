@@ -144,6 +144,30 @@ class SettingsView extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Cache pruning interval:'),
+                              Text('Maybe just leave this one alone.',
+                                  style: themeService.theme.textTheme.caption)
+                            ]),
+                            const Spacer(),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: new DropdownButton<int>(
+                                value: watercooler.pruneInterval,
+                                items: <int>[20, 300, 86400].map((int value) {
+                                  return new DropdownMenuItem<int>(
+                                    value: value,
+                                    child: new Text(value.toString()),
+                                  );
+                                }).toList(),
+                                onChanged: (value) => watercooler.pruneInterval = value,
+                              ),
+                            ),
+                          ]),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Text('Cache limit:'),
                               Text('Lower is Faster', style: themeService.theme.textTheme.caption)
                             ]),
@@ -169,7 +193,9 @@ class SettingsView extends StatelessWidget {
                               onTap: () => watercooler.clearCacheAtStartup =
                                   !watercooler.clearCacheAtStartup,
                               child: Row(children: [
-                                Text('Clear cache at startup'),
+                                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text('Clear cache at startup'),
+                                ]),
                                 const Spacer(),
                                 Checkbox(
                                     value: watercooler.clearCacheAtStartup,
@@ -177,6 +203,7 @@ class SettingsView extends StatelessWidget {
                                 // Text('', style: themeService.theme.textTheme.caption)
                               ])),
                         ),
+
                         // Divider(),
                         // Row(children: [
                         //   Text('Cards', style: Theme.of(context).textTheme.bodyText1),

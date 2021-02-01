@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:tacostream/core/base/theme.dart';
 
-class WashingtonTheme implements BaseTheme {
-  String get name => "Washington";
+class WyomingTheme implements BaseTheme {
+  String get name => "Wyoming";
   MaterialColor get primaryColor => _buildColorScheme().primary;
   MaterialColor get primaryColorDark => _buildColorScheme(isDark: true).primary;
 
@@ -27,7 +27,7 @@ class WashingtonTheme implements BaseTheme {
   }
 
   MarkdownStyleSheet get markdownLight => MarkdownStyleSheet.fromTheme(light)
-      .copyWith(blockquoteDecoration: BoxDecoration(color: charcoal[300]));
+      .copyWith(blockquoteDecoration: BoxDecoration(color: darkBlue[300]));
 
   MarkdownStyleSheet get markdownDark => MarkdownStyleSheet.fromTheme(dark).copyWith(
         blockquoteDecoration: BoxDecoration(color: softGrey[300]),
@@ -39,17 +39,17 @@ class WashingtonTheme implements BaseTheme {
   bool get stringify => true;
 
   ColorScheme _buildColorScheme({bool isDark = false}) => ColorScheme(
-      primary: persianGreen,
-      primaryVariant: isDark ? persianGreen[300] : persianGreen[100],
-      secondary: orangeYellowCrayola,
-      secondaryVariant: sandyBrown,
-      surface: isDark ? charcoal : softGrey,
-      background: isDark ? charcoal : softGrey,
-      error: burntSienna,
+      primary: isDark ? darkBlue : blue,
+      primaryVariant: isDark ? darkBlue[300] : blue[100],
+      secondary: isDark ? darkRed : red,
+      secondaryVariant: isDark ? red : darkRed,
+      surface: isDark ? darkBlue : softGrey,
+      background: isDark ? darkBlue : softGrey,
+      error: red,
       onPrimary: Colors.black,
       onSecondary: Colors.black,
-      onSurface: isDark ? softGrey : charcoal,
-      onBackground: isDark ? softGrey : charcoal,
+      onSurface: isDark ? softGrey : darkBlue,
+      onBackground: isDark ? softGrey : darkBlue,
       onError: Colors.black,
       brightness: isDark ? Brightness.dark : Brightness.light);
 
@@ -65,41 +65,53 @@ class WashingtonTheme implements BaseTheme {
     100: Color(0x33f0efeb),
     50: Color(0x1Af0efeb)
   });
-  final charcoal = MaterialColor(0xFF264653, {
-    900: Color(0xFF264653),
-    800: Color(0xE6264653),
-    700: Color(0xCC264653),
-    600: Color(0xB3264653),
-    500: Color(0x99264653),
-    400: Color(0x80264653),
-    300: Color(0x66264653),
-    200: Color(0x4D264653),
-    100: Color(0x33264653),
-    50: Color(0x1A264653)
+  final darkRed = MaterialColor(0xFF920000, {
+    900: Color(0xFF920000),
+    800: Color(0xE6920000),
+    700: Color(0xCC920000),
+    600: Color(0xB3920000),
+    500: Color(0x99920000),
+    400: Color(0x80920000),
+    300: Color(0x66920000),
+    200: Color(0x4D920000),
+    100: Color(0x33920000),
+    50: Color(0x1A920000)
   });
-  final persianGreen = MaterialColor(0xFF2a9d8f, {
-    900: Color(0xFF2a9d8f),
-    800: Color(0xE62a9d8f),
-    700: Color(0xCC2a9d8f),
-    600: Color(0xB32a9d8f),
-    500: Color(0x992a9d8f),
-    400: Color(0x802a9d8f),
-    300: Color(0x662a9d8f),
-    200: Color(0x4D2a9d8f),
-    100: Color(0x332a9d8f),
-    50: Color(0x1A2a9d8f)
+  final darkBlue = MaterialColor(0xFF00003d, {
+    900: Color(0xFF00003d),
+    800: Color(0xE600003d),
+    700: Color(0xCC00003d),
+    600: Color(0xB300003d),
+    500: Color(0x9900003d),
+    400: Color(0x8000003d),
+    300: Color(0x6600003d),
+    200: Color(0x4D00003d),
+    100: Color(0x3300003d),
+    50: Color(0x1A00003d)
   });
-  final orangeYellowCrayola = MaterialColor(0xFFe9c46a, {
-    900: Color(0xFFe9c46a),
-    800: Color(0xE6e9c46a),
-    700: Color(0xCCe9c46a),
-    600: Color(0xB3e9c46a),
-    500: Color(0x99e9c46a),
-    400: Color(0x80e9c46a),
-    300: Color(0x66e9c46a),
-    200: Color(0x4De9c46a),
-    100: Color(0x33e9c46a),
-    50: Color(0x1Ae9c46a)
+  final blue = MaterialColor(0xFF002768, {
+    900: Color(0xFF002768),
+    800: Color(0xE6002768),
+    700: Color(0xCC002768),
+    600: Color(0xB3002768),
+    500: Color(0x99002768),
+    400: Color(0x80002768),
+    300: Color(0x66002768),
+    200: Color(0x4D002768),
+    100: Color(0x33002768),
+    50: Color(0x1A002768)
+  });
+  final red = MaterialColor(0xFFcb001e, {
+    900: Color(0xFFcb001e),
+    800: Color(0xE6cb001e),
+    700: Color(0xCCcb001e),
+    600: Color(0xB3cb001e),
+    500: Color(0x99cb001e),
+    400: Color(0x80cb001e),
+    300: Color(0x66cb001e),
+    200: Color(0x4Dcb001e),
+    100: Color(0x33cb001e),
+    50: Color(0x1Acb001e)
   });
   final sandyBrown = MaterialColor(0xFFf4a261, {
     900: Color(0xFFf4a261),

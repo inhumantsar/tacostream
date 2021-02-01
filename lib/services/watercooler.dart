@@ -10,13 +10,12 @@ import 'package:tacostream/services/jeeves.dart';
 
 enum WatercoolerStatus { clearing, ready, notReady }
 
-class Watercooler with BaseService {
+class Watercooler extends ChangeNotifier with BaseService {
   final Box<Comment> _box;
   final _jeeves = GetIt.instance<Jeeves>();
   var _status = WatercoolerStatus.notReady;
   // ignore: unused_field
   Timer _pruneTimer;
-  Duration _pruneInterval = const Duration(minutes: 3);
 
   Watercooler(this._box) {
     if (_jeeves.clearCacheAtStartup)
@@ -24,7 +23,7 @@ class Watercooler with BaseService {
     else
       _status = WatercoolerStatus.ready;
 
-    _pruneTimer = Timer.periodic(_pruneInterval, prune);
+    _pruneTimer = Timer.periodic(Duration(seconds: pruneInterval), prune);
   }
 
   put(String key, Comment value) => _box.put(key, value);
@@ -35,9 +34,24 @@ class Watercooler with BaseService {
   ValueListenable<Box<Comment>> get listenable => _box.listenable();
   get status => _status;
   get maxCacheSize => _jeeves.maxCacheSize;
-  set maxCacheSize(val) => _jeeves.maxCacheSize = val;
+  set maxCacheSize(val) {
+    _jeeves.maxCacheSize = val;
+    notifyListeners();
+  }
+
   get clearCacheAtStartup => _jeeves.clearCacheAtStartup;
-  set clearCacheAtStartup(val) => _jeeves.clearCacheAtStartup = val;
+  set clearCacheAtStartup(val) {
+    _jeeves.clearCacheAtStartup = val;
+    notifyListeners();
+  }
+
+  get pruneInterval => _jeeves.pruneInterval;
+  set pruneInterval(val) {
+    _jeeves.pruneInterval = val;
+    _pruneTimer.cancel();
+    _pruneTimer = Timer.periodic(Duration(seconds: pruneInterval), prune);
+    notifyListeners();
+  }
 
   Future<void> clear() async {
     log.info('clearing cache');

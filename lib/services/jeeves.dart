@@ -30,7 +30,7 @@ class Jeeves with BaseService {
     log.info('dark mode on: ${this.darkMode}');
   }
 
-  void toggleDarkMode() => darkMode ? false : true;
+  void toggleDarkMode() => darkMode = darkMode ? false : true;
 
   // system prefs
   int get maxCacheSize => _prefsBox.get('maxCacheSize', defaultValue: 1000);
@@ -43,5 +43,11 @@ class Jeeves with BaseService {
   set clearCacheAtStartup(bool value) {
     _prefsBox.put('clearCacheAtStartup', value);
     log.info('updated clearCacheAtStartup: $clearCacheAtStartup');
+  }
+
+  int get pruneInterval => _prefsBox.get('pruneInterval', defaultValue: 300);
+  set pruneInterval(int value) {
+    _prefsBox.put('pruneInterval', value);
+    log.info('updated pruneInterval: $pruneInterval');
   }
 }
