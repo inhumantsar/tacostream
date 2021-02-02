@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
-import 'package:tacostream/services/jeeves.dart';
 import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -30,9 +30,12 @@ class SettingsView extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: RaisedButton(
                               color: Theme.of(context).buttonColor,
-                              onPressed: () => snoop.hasAccounts
-                                  ? snoop.logout()
-                                  : snoop.reconnect(forceAuth: true),
+                              onPressed: snoop.loginStatus == LoginStatus.loggingIn ||
+                                      snoop.loginStatus == LoginStatus.loggingOut
+                                  ? null
+                                  : () => snoop.loginStatus == LoginStatus.loggedIn
+                                      ? snoop.logout()
+                                      : snoop.reconnect(forceAuth: true),
                               child: Flex(
                                   direction: Axis.horizontal,
                                   mainAxisSize: MainAxisSize.min,
@@ -40,9 +43,12 @@ class SettingsView extends StatelessWidget {
                                     Icon(FontAwesomeIcons.reddit),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      child: snoop.hasAccounts
-                                          ? Text('Log Out')
-                                          : Text('Log in with Reddit'),
+                                      child: snoop.loginStatus == LoginStatus.loggingIn ||
+                                              snoop.loginStatus == LoginStatus.loggingOut
+                                          ? Text('Please wait...')
+                                          : snoop.loginStatus == LoginStatus.loggedIn
+                                              ? Text('Log Out')
+                                              : Text('Log in with Reddit'),
                                     )
                                   ])),
                         )),

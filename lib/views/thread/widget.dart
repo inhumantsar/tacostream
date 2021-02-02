@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:provider/provider.dart';
-
 import 'package:tacostream/core/base/logger.dart';
 import 'package:tacostream/models/thread.dart';
-import 'package:tacostream/services/theme.dart';
-import 'package:tacostream/services/watercooler.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
 
 class ThreadWidget extends StatelessWidget {

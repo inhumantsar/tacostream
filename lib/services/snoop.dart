@@ -1,7 +1,9 @@
 // Snoop - DT comment ingest pipeline
 
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:package_info/package_info.dart';
@@ -14,13 +16,17 @@ import 'package:tacostream/models/thread.dart';
 import 'package:tacostream/services/jeeves.dart';
 import 'package:tacostream/services/watercooler.dart';
 
+enum LoginStatus {
+  loggingIn,
+  loggedIn,
+  loggedOut,
+  loggingOut,
+}
+
 enum IngestStatus {
   noConnectionError,
   redditAuthError,
   unknownError,
-  loggingIn,
-  loggedIn,
-  loggedOut,
   reconnecting,
   connected,
   disconnected
@@ -36,11 +42,14 @@ class Snoop extends ChangeNotifier with BaseService {
   final String postAuthor = 'jobautomator';
 
   IngestStatus _status;
+  LoginStatus _loginStatus = LoginStatus.loggedOut;
+  LoginStatus get loginStatus => _loginStatus;
 
   StreamSubscription _incoming;
 
+  draw.Submission dtSubmission;
   var dtShortlink;
-  DateTime currentDtExpiration;
+  DateTime dtExpiration;
 
   double _ingestRate = 0;
   double get ingestRate => _ingestRate;
@@ -84,8 +93,13 @@ class Snoop extends ChangeNotifier with BaseService {
     return thread;
   }
 
-  IngestStatus get status => _status;
   WatercoolerStatus get cacheStatus => _wc.status;
+  IngestStatus get status => _status;
+  _updateStatus({IngestStatus ingest, LoginStatus login}) {
+    if (ingest != null) _status = ingest;
+    if (login != null) _loginStatus = login;
+    SchedulerBinding.instance.addPostFrameCallback((_) => notifyListeners());
+  }
 
   Snoop() {
     statusLogTimer = Timer.periodic(statusLoggerInterval, statusLogger);
@@ -109,18 +123,16 @@ class Snoop extends ChangeNotifier with BaseService {
     /// keeps an eye on the device's internet connection, responds accordingly
     if (!(await hasInternet)) {
       this.log.warning('no internet connection');
-      _status = IngestStatus.noConnectionError;
       _incoming?.cancel();
-      notifyListeners();
+      _updateStatus(ingest: IngestStatus.noConnectionError);
       return;
     }
 
     if (_status == IngestStatus.reconnecting) {
       this.log.info('still reconnecting... attempt $_reconnectCounter/$_reconnectMax');
       if (_reconnectCounter >= _reconnectMax) {
-        _status = IngestStatus.noConnectionError;
         _incoming?.cancel();
-        notifyListeners();
+        _updateStatus(ingest: IngestStatus.noConnectionError);
         _reconnectCounter = 0;
         return;
       } else {
@@ -130,7 +142,7 @@ class Snoop extends ChangeNotifier with BaseService {
     }
 
     if (_status != IngestStatus.connected) {
-      this.log.info('connection: $_status, attempting reconnect...');
+      this.log.info('connection: $status, attempting reconnect...');
       reconnect();
     }
   }
@@ -142,28 +154,30 @@ class Snoop extends ChangeNotifier with BaseService {
     this.log.info("incoming: $ingestRate cpm");
     this.log.info('stored comments: ${comments.length}');
     this.log.info('ingestStatus: $status');
+    this.log.info('loginStatus: $loginStatus');
   }
 
-  void reconnect({forceAuth = false}) async {
+  Future<void> reconnect({forceAuth = false}) async {
     this.log.info('attempting reconnect');
-    _status = IngestStatus.reconnecting;
+    _updateStatus(ingest: IngestStatus.reconnecting);
     await _incoming?.cancel();
     _incoming = null;
     _reddit = await _authReddit(forceAuth: forceAuth);
-    _listenForNewComments();
     notifyListeners();
+    _listenForNewComments();
   }
 
   Future<void> validateDt(draw.Comment c) async {
     /// confirm dt metadata is current and valid
-    final isDtExpired = currentDtExpiration?.isBefore(DateTime.now()) ?? false;
+    final isDtExpired = dtExpiration?.isBefore(DateTime.now()) ?? false;
     if (dtShortlink == null || isDtExpired) {
       this.log.debug('currentDt is unknown/expired, checking if submission is DT.');
       draw.Submission post = await c.submission.populate();
       if (post.stickied && post.title == postTitle && post.author == postAuthor) {
+        dtSubmission = post;
         dtShortlink = post.shortlink;
-        currentDtExpiration = post.createdUtc.add(Duration(days: 1));
-        this.log.debug('new dtShortlink: $dtShortlink');
+        dtExpiration = post.createdUtc.add(Duration(days: 1));
+        this.log.debug('new dt: $dtShortlink');
       }
     }
   }
@@ -200,17 +214,17 @@ class Snoop extends ChangeNotifier with BaseService {
   void _newCommentsError(Object e, [StackTrace stackTrace]) {
     this.log.error('snoop: new comment stream encountered an error: $e');
     if (e.toString().contains("SocketException"))
-      _status = IngestStatus.noConnectionError;
+      _updateStatus(ingest: IngestStatus.noConnectionError);
     else
-      _status = IngestStatus.unknownError;
+      _updateStatus(ingest: IngestStatus.unknownError);
   }
 
   _listenForNewComments() async {
     /// listens for new comments in the sub and grabs any posted to the DT
     if (_reddit == null) {
-      _status = IngestStatus.redditAuthError;
+      _updateStatus(ingest: IngestStatus.redditAuthError);
     } else {
-      _status = IngestStatus.connected;
+      _updateStatus(ingest: IngestStatus.connected);
       _incoming = this
           ._reddit
           .subreddit(subreddit)
@@ -225,12 +239,30 @@ class Snoop extends ChangeNotifier with BaseService {
   // reddit
   bool get hasAccounts => _jeeves.accounts.length > 0;
 
-  void logout() {
+  Future<void> logout() async {
+    _updateStatus(login: LoginStatus.loggingOut);
     _jeeves.clearAccounts();
-    reconnect();
+    await reconnect();
+    _updateStatus(login: LoginStatus.loggedOut);
+  }
+
+  Future<void> submitReply(String text, {Comment parent}) async {
+    if (text.isEmpty) return;
+
+    try {
+      if (parent == null)
+        dtSubmission.reply(text);
+      else
+        _reddit.comment(id: parent.id).populate().then((c) => c.reply(text));
+      this.log.info('submitted reply: ${text.substring(0, min(text.length, 15))}');
+    } catch (exc) {
+      this.log.error("unable to submit reply: $exc");
+    }
   }
 
   Future<draw.Reddit> _authReddit({forceAuth = false}) async {
+    if (_loginStatus == LoginStatus.loggingIn) return null;
+    _updateStatus(login: LoginStatus.loggingIn);
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String versionName = packageInfo.version;
     String versionCode = packageInfo.buildNumber;
@@ -245,9 +277,6 @@ class Snoop extends ChangeNotifier with BaseService {
   }
 
   Future<draw.Reddit> _authAsAnon(String userAgent, String clientId) async {
-    if (_status == IngestStatus.loggingIn) return null;
-    _status = IngestStatus.loggingIn;
-
     final deviceId = _jeeves.deviceId;
     this.log.debug("deviceId: $deviceId");
     var reddit;
@@ -256,7 +285,7 @@ class Snoop extends ChangeNotifier with BaseService {
       reddit = await draw.Reddit.createUntrustedReadOnlyInstance(
           clientId: clientId, deviceId: deviceId, userAgent: userAgent);
       this.log.info("authed anonymously");
-      _status = IngestStatus.loggedOut;
+      _loginStatus = LoginStatus.loggedOut;
     } catch (e) {
       this.log.error("unable to auth anonymously: $e");
       _status = IngestStatus.redditAuthError;
@@ -266,16 +295,14 @@ class Snoop extends ChangeNotifier with BaseService {
   }
 
   Future<draw.Reddit> _authAsUser(String userAgent, String clientId) async {
-    if (_status == IngestStatus.loggingIn) return null;
-    _status = IngestStatus.loggingIn;
     var reddit;
 
     if (_jeeves.accounts.length > 0 && (_jeeves.accounts[0].credentials?.isNotEmpty ?? false)) {
-      reddit = _authAsUserViaCache(userAgent, clientId);
+      reddit = await _authAsUserViaCache(userAgent, clientId);
     } else {
-      reddit = _authAsUserViaWeb(userAgent, clientId);
+      reddit = await _authAsUserViaWeb(userAgent, clientId);
     }
-    _status = IngestStatus.loggedIn;
+    _loginStatus = LoginStatus.loggedIn;
     return reddit;
   }
 
@@ -284,17 +311,29 @@ class Snoop extends ChangeNotifier with BaseService {
     this.log.debug('userAgent: $userAgent');
     this.log.debug('clientId: $clientId');
     var reddit;
+
     try {
-      reddit = draw.Reddit.restoreAuthenticatedInstance(_jeeves.accounts[0].credentials,
+      reddit = draw.Reddit.restoreInstalledAuthenticatedInstance(_jeeves.accounts[0].credentials,
           userAgent: userAgent, clientId: clientId);
     } catch (exc) {
-      this.log.error('Unable to restore session from cached creds: $exc');
-      _jeeves.addAccount(Redditor.fromMap({'id': _jeeves.accounts[0].id, 'credentials': ''}));
-      this.log.info('Cached credentials cleared, retrying login.');
-      return _authAsUser(userAgent, clientId);
+      reddit = _authAsUserViaCacheFallback(userAgent, clientId, exc);
     }
-    reddit.user.me().then((r) => this.log.debug('confirmed user is logged in: ${r.displayName}'));
+
+    try {
+      reddit.user.me().then((r) => this.log.debug('confirmed user is logged in: ${r.displayName}'));
+    } catch (exc) {
+      this.log.debug('reddit.user.me() exc encountered:');
+      reddit = _authAsUserViaCacheFallback(userAgent, clientId, exc);
+    }
     return reddit;
+  }
+
+  Future<draw.Reddit> _authAsUserViaCacheFallback(
+      String userAgent, String clientId, Exception exc) {
+    this.log.error('Unable to restore session from cached creds: $exc');
+    _jeeves.addAccount(Redditor.fromMap({'id': _jeeves.accounts[0].id, 'credentials': ''}));
+    this.log.info('Cached credentials cleared, retrying login.');
+    return _authAsUser(userAgent, clientId);
   }
 
   Future<draw.Reddit> _authAsUserViaWeb(String userAgent, String clientId) async {
