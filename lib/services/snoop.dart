@@ -1,13 +1,15 @@
-// Jeremiah - DT comment ingest pipeline
+// Snoop - DT comment ingest pipeline
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:package_info/package_info.dart';
 import 'package:tacostream/core/base/service.dart';
 import 'package:tacostream/core/util.dart';
 import 'package:tacostream/models/comment.dart';
 import 'package:draw/draw.dart' as draw;
+import 'package:tacostream/models/redditor.dart';
 import 'package:tacostream/models/thread.dart';
 import 'package:tacostream/services/jeeves.dart';
 import 'package:tacostream/services/watercooler.dart';
@@ -16,12 +18,15 @@ enum IngestStatus {
   noConnectionError,
   redditAuthError,
   unknownError,
+  loggingIn,
+  loggedIn,
+  loggedOut,
   reconnecting,
   connected,
   disconnected
 }
 
-class Jeremiah extends ChangeNotifier with BaseService {
+class Snoop extends ChangeNotifier with BaseService {
   final _wc = GetIt.instance<Watercooler>();
   final _jeeves = GetIt.instance<Jeeves>();
 
@@ -47,7 +52,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
   Timer statusLogTimer;
   static const Duration statusLoggerInterval = Duration(seconds: 30);
   Timer netMonTimer;
-  static const Duration netMonInterval = const Duration(seconds: 10);
+  static const Duration netMonInterval = const Duration(seconds: 10000);
 
   Iterable<Comment> get comments => _wc.values;
   Iterable get commentIds => _wc.keys;
@@ -70,7 +75,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
     if (parent.replies != null) {
       await parent.replies.replaceMore();
       var replyTypes = parent.replies.comments.map((e) => e.runtimeType).toList();
-      this.log.debug('Replies found: ${replyTypes}');
+      this.log.debug('Replies found: $replyTypes');
     }
     final thread = await Thread.fromDrawThread(parent);
     this
@@ -82,7 +87,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
   IngestStatus get status => _status;
   WatercoolerStatus get cacheStatus => _wc.status;
 
-  Jeremiah() {
+  Snoop() {
     statusLogTimer = Timer.periodic(statusLoggerInterval, statusLogger);
     netMonTimer = Timer.periodic(netMonInterval, netMon);
   }
@@ -96,7 +101,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
   }
 
   Listenable get listenable {
-    _incoming ?? _listenForNewComments();
+    _incoming ?? reconnect();
     return _wc.listenable;
   }
 
@@ -139,12 +144,12 @@ class Jeremiah extends ChangeNotifier with BaseService {
     this.log.info('ingestStatus: $status');
   }
 
-  void reconnect() async {
+  void reconnect({forceAuth = false}) async {
     this.log.info('attempting reconnect');
     _status = IngestStatus.reconnecting;
     await _incoming?.cancel();
     _incoming = null;
-    _reddit = null;
+    _reddit = await _authReddit(forceAuth: forceAuth);
     _listenForNewComments();
     notifyListeners();
   }
@@ -180,7 +185,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
       await _commentIsOnDt(c) ? c : null;
 
   void _newCommentsDone() {
-    this.log.info('jeremiah: new comment listener closed (done).');
+    this.log.info('snoop: new comment listener closed (done).');
     reconnect();
   }
 
@@ -193,7 +198,7 @@ class Jeremiah extends ChangeNotifier with BaseService {
   }
 
   void _newCommentsError(Object e, [StackTrace stackTrace]) {
-    this.log.error('jeremiah: new comment stream encountered an error: $e');
+    this.log.error('snoop: new comment stream encountered an error: $e');
     if (e.toString().contains("SocketException"))
       _status = IngestStatus.noConnectionError;
     else
@@ -202,7 +207,6 @@ class Jeremiah extends ChangeNotifier with BaseService {
 
   _listenForNewComments() async {
     /// listens for new comments in the sub and grabs any posted to the DT
-    _reddit ??= await _authReddit();
     if (_reddit == null) {
       _status = IngestStatus.redditAuthError;
     } else {
@@ -219,22 +223,149 @@ class Jeremiah extends ChangeNotifier with BaseService {
   }
 
   // reddit
-  Future<draw.Reddit> _authReddit() async {
+  bool get hasAccounts => _jeeves.accounts.length > 0;
+
+  void logout() {
+    _jeeves.clearAccounts();
+    reconnect();
+  }
+
+  Future<draw.Reddit> _authReddit({forceAuth = false}) async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
     String versionName = packageInfo.version;
     String versionCode = packageInfo.buildNumber;
     String packageName = packageInfo.packageName;
     final userAgent = 'android:$packageName:v$versionName.$versionCode (by /u/inhumantsar)';
+    const clientId = 'GW3D4HqPspIgtA';
+
+    if (forceAuth || _jeeves.accounts.length > 0)
+      return await _authAsUser(userAgent, clientId);
+    else
+      return await _authAsAnon(userAgent, clientId);
+  }
+
+  Future<draw.Reddit> _authAsAnon(String userAgent, String clientId) async {
+    if (_status == IngestStatus.loggingIn) return null;
+    _status = IngestStatus.loggingIn;
+
     final deviceId = _jeeves.deviceId;
-    print("userAgent: $userAgent");
-    print("deviceId: $deviceId");
+    this.log.debug("deviceId: $deviceId");
+    var reddit;
 
     try {
-      return await draw.Reddit.createUntrustedReadOnlyInstance(
-          clientId: 'GW3D4HqPspIgtA', deviceId: deviceId, userAgent: userAgent);
+      reddit = await draw.Reddit.createUntrustedReadOnlyInstance(
+          clientId: clientId, deviceId: deviceId, userAgent: userAgent);
+      this.log.info("authed anonymously");
+      _status = IngestStatus.loggedOut;
     } catch (e) {
-      this.log.error("authReddit failed: $e");
+      this.log.error("unable to auth anonymously: $e");
+      _status = IngestStatus.redditAuthError;
     }
-    return null;
+
+    return reddit;
   }
+
+  Future<draw.Reddit> _authAsUser(String userAgent, String clientId) async {
+    if (_status == IngestStatus.loggingIn) return null;
+    _status = IngestStatus.loggingIn;
+    var reddit;
+
+    if (_jeeves.accounts.length > 0 && (_jeeves.accounts[0].credentials?.isNotEmpty ?? false)) {
+      reddit = _authAsUserViaCache(userAgent, clientId);
+    } else {
+      reddit = _authAsUserViaWeb(userAgent, clientId);
+    }
+    _status = IngestStatus.loggedIn;
+    return reddit;
+  }
+
+  Future<draw.Reddit> _authAsUserViaCache(String userAgent, String clientId) async {
+    this.log.info('starting reddit authentication process using existing credentials');
+    this.log.debug('userAgent: $userAgent');
+    this.log.debug('clientId: $clientId');
+    var reddit;
+    try {
+      reddit = draw.Reddit.restoreAuthenticatedInstance(_jeeves.accounts[0].credentials,
+          userAgent: userAgent, clientId: clientId);
+    } catch (exc) {
+      this.log.error('Unable to restore session from cached creds: $exc');
+      _jeeves.addAccount(Redditor.fromMap({'id': _jeeves.accounts[0].id, 'credentials': ''}));
+      this.log.info('Cached credentials cleared, retrying login.');
+      return _authAsUser(userAgent, clientId);
+    }
+    reddit.user.me().then((r) => this.log.debug('confirmed user is logged in: ${r.displayName}'));
+    return reddit;
+  }
+
+  Future<draw.Reddit> _authAsUserViaWeb(String userAgent, String clientId) async {
+    this.log.info('starting reddit authentication process');
+    this.log.debug('userAgent: $userAgent');
+    this.log.debug('clientId: $clientId');
+    final redirectUri = Uri(scheme: 'taco', host: 'moo', path: 'oauth2redirect');
+    final reddit = draw.Reddit.createInstalledFlowInstance(
+        userAgent: userAgent,
+        // configUri: configUri,
+        clientId: clientId,
+        redirectUri: redirectUri);
+    final authUrl = reddit.auth.url(_scopes, 'tacotrucks');
+    this.log.debug('authUrl created: $authUrl');
+
+    // open auth dialog
+    var result;
+    try {
+      result =
+          await FlutterWebAuth.authenticate(url: authUrl.toString(), callbackUrlScheme: 'taco');
+    } catch (exc) {
+      this.log.error('Unable to complete web authentication: $exc');
+      return null;
+    }
+    this.log.debug('FlutterWebAuth complete.');
+    final code = Uri.parse(result).queryParameters['code'];
+    this.log.debug('Auth code parsed: $code');
+
+    // auth lib and save me obj
+    try {
+      await reddit.auth.authorize(code);
+    } catch (exc) {
+      this.log.error('Unable to authorize code with reddit: $exc');
+      return null;
+    }
+    this.log.debug('User authorized');
+    reddit.user.me().then((value) {
+      _jeeves.addAccount(Redditor.fromDraw(value, reddit.auth.credentials.toJson()));
+      this.log.debug('User stored.');
+    });
+    return reddit;
+  }
+
+  List<String> get _scopes => [
+        // 'creddits',
+        // 'modcontributors',
+        // 'modmail',
+        // 'modconfig',
+        // 'subscribe',
+        // 'structuredstyles',
+        // 'vote',
+        // 'wikiedit',
+        // 'mysubreddits',
+        'submit',
+        // 'modlog',
+        // 'modposts',
+        // 'modflair',
+        // 'save',
+        // 'modothers',
+        'read',
+        // 'privatemessages',
+        // 'report',
+        'identity',
+        // 'livemanage',
+        // 'account',
+        // 'modtraffic',
+        // 'wikiread',
+        'edit',
+        // 'modwiki',
+        // 'modself',
+        // 'history',
+        // 'flair',
+      ];
 }

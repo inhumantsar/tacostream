@@ -4,7 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/core/base/logger.dart';
 import 'package:tacostream/models/comment.dart';
-import 'package:tacostream/services/jeremiah.dart';
+import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/views/thread/thread.dart';
 import 'package:tacostream/widgets/author/author.dart';
@@ -54,7 +54,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse hendrerit n
   Widget build(BuildContext context) {
     final c = comment ?? dummyComment;
 
-    return Consumer2<Jeremiah, ThemeService>(builder: (context, jer, ts, widget) {
+    return Consumer2<Snoop, ThemeService>(builder: (context, snoop, ts, widget) {
       final t = this.theme ?? Theme.of(context);
       return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -71,7 +71,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse hendrerit n
                   // should fetch the parent
                   showParent &&
                           c.parentId.startsWith('t1_') &&
-                          jer.commentIds.contains(c.parentId.substring(3))
+                          snoop.commentIds.contains(c.parentId.substring(3))
                       ? Container(
                           margin: EdgeInsets.fromLTRB(12, 4, 12, 12),
                           child: ParentWidget(

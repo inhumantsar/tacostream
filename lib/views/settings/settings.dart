@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tacostream/services/jeeves.dart';
+import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:tacostream/services/watercooler.dart';
@@ -12,8 +14,8 @@ class SettingsView extends StatelessWidget {
         appBar: AppBar(
           actions: [],
         ),
-        body: Consumer2<Watercooler, ThemeService>(
-            builder: (context, watercooler, themeService, widget) => SingleChildScrollView(
+        body: Consumer3<Snoop, Watercooler, ThemeService>(
+            builder: (context, snoop, wc, ts, widget) => SingleChildScrollView(
                   child: Padding(
                       padding: EdgeInsets.fromLTRB(8, 16, 8, 4),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -28,7 +30,9 @@ class SettingsView extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 12.0),
                           child: RaisedButton(
                               color: Theme.of(context).buttonColor,
-                              onPressed: null,
+                              onPressed: () => snoop.hasAccounts
+                                  ? snoop.logout()
+                                  : snoop.reconnect(forceAuth: true),
                               child: Flex(
                                   direction: Axis.horizontal,
                                   mainAxisSize: MainAxisSize.min,
@@ -36,7 +40,9 @@ class SettingsView extends StatelessWidget {
                                     Icon(FontAwesomeIcons.reddit),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      child: Text('Coming Soon'),
+                                      child: snoop.hasAccounts
+                                          ? Text('Log Out')
+                                          : Text('Log in with Reddit'),
                                     )
                                   ])),
                         )),
@@ -65,10 +71,10 @@ class SettingsView extends StatelessWidget {
                                                   .textTheme
                                                   .bodyText2
                                                   .copyWith(fontSize: 24)),
-                                          fillColor: themeService.fontSize == FontSize.large
+                                          fillColor: ts.fontSize == FontSize.large
                                               ? Theme.of(context).colorScheme.secondary
                                               : Theme.of(context).colorScheme.surface,
-                                          onPressed: () => themeService.fontSize = FontSize.large,
+                                          onPressed: () => ts.fontSize = FontSize.large,
                                           shape: CircleBorder())),
                                   Flexible(
                                       flex: 1,
@@ -78,10 +84,10 @@ class SettingsView extends StatelessWidget {
                                                   .textTheme
                                                   .bodyText2
                                                   .copyWith(fontSize: 18)),
-                                          fillColor: themeService.fontSize == FontSize.medium
+                                          fillColor: ts.fontSize == FontSize.medium
                                               ? Theme.of(context).colorScheme.secondary
                                               : Theme.of(context).colorScheme.surface,
-                                          onPressed: () => themeService.fontSize = FontSize.medium,
+                                          onPressed: () => ts.fontSize = FontSize.medium,
                                           shape: CircleBorder())),
                                   Flexible(
                                       flex: 1,
@@ -91,35 +97,30 @@ class SettingsView extends StatelessWidget {
                                                   .textTheme
                                                   .bodyText2
                                                   .copyWith(fontSize: 14)),
-                                          fillColor: themeService.fontSize == FontSize.small
+                                          fillColor: ts.fontSize == FontSize.small
                                               ? Theme.of(context).colorScheme.secondary
                                               : Theme.of(context).colorScheme.surface,
-                                          onPressed: () => themeService.fontSize = FontSize.small,
+                                          onPressed: () => ts.fontSize = FontSize.small,
                                           shape: CircleBorder())),
                                 ])),
                             Divider(),
                             FlatButton(
-                              onPressed: themeService.toggleDarkMode,
+                              onPressed: ts.toggleDarkMode,
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(8, 8, 0, 8),
                                 // padding: const EdgeInsets.all(8.0),
                                 child: Row(children: [
-                                  Text(
-                                      themeService.darkMode
-                                          ? 'Switch to Light mode'
-                                          : 'Switch to Dark mode',
+                                  Text(ts.darkMode ? 'Switch to Light mode' : 'Switch to Dark mode',
                                       style: Theme.of(context).textTheme.button),
                                   Spacer(),
                                   RawMaterialButton(
                                       child: Icon(
-                                          themeService.darkMode
-                                              ? Icons.lightbulb
-                                              : Icons.lightbulb_outline,
+                                          ts.darkMode ? Icons.lightbulb : Icons.lightbulb_outline,
                                           size: 18),
-                                      fillColor: themeService.darkMode
+                                      fillColor: ts.darkMode
                                           ? Theme.of(context).colorScheme.primaryVariant
                                           : Theme.of(context).colorScheme.surface,
-                                      onPressed: themeService.toggleDarkMode,
+                                      onPressed: ts.toggleDarkMode,
                                       shape: CircleBorder()),
                                 ]),
                               ),
@@ -146,20 +147,20 @@ class SettingsView extends StatelessWidget {
                             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Text('Cache pruning interval:'),
                               Text('Maybe just leave this one alone.',
-                                  style: themeService.theme.textTheme.caption)
+                                  style: ts.theme.textTheme.caption)
                             ]),
                             const Spacer(),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8.0),
                               child: new DropdownButton<int>(
-                                value: watercooler.pruneInterval,
+                                value: wc.pruneInterval,
                                 items: <int>[20, 300, 86400].map((int value) {
                                   return new DropdownMenuItem<int>(
                                     value: value,
                                     child: new Text(value.toString()),
                                   );
                                 }).toList(),
-                                onChanged: (value) => watercooler.pruneInterval = value,
+                                onChanged: (value) => wc.pruneInterval = value,
                               ),
                             ),
                           ]),
@@ -169,20 +170,20 @@ class SettingsView extends StatelessWidget {
                           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                               Text('Cache limit:'),
-                              Text('Lower is Faster', style: themeService.theme.textTheme.caption)
+                              Text('Lower is Faster', style: ts.theme.textTheme.caption)
                             ]),
                             const Spacer(),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8.0),
                               child: new DropdownButton<int>(
-                                value: watercooler.maxCacheSize,
+                                value: wc.maxCacheSize,
                                 items: <int>[100, 1000, 10000, 100000].map((int value) {
                                   return new DropdownMenuItem<int>(
                                     value: value,
                                     child: new Text(value.toString()),
                                   );
                                 }).toList(),
-                                onChanged: (value) => watercooler.maxCacheSize = value,
+                                onChanged: (value) => wc.maxCacheSize = value,
                               ),
                             ),
                           ]),
@@ -190,16 +191,15 @@ class SettingsView extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: GestureDetector(
-                              onTap: () => watercooler.clearCacheAtStartup =
-                                  !watercooler.clearCacheAtStartup,
+                              onTap: () => wc.clearCacheAtStartup = !wc.clearCacheAtStartup,
                               child: Row(children: [
                                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                                   Text('Clear cache at startup'),
                                 ]),
                                 const Spacer(),
                                 Checkbox(
-                                    value: watercooler.clearCacheAtStartup,
-                                    onChanged: (value) => watercooler.clearCacheAtStartup = value),
+                                    value: wc.clearCacheAtStartup,
+                                    onChanged: (value) => wc.clearCacheAtStartup = value),
                                 // Text('', style: themeService.theme.textTheme.caption)
                               ])),
                         ),

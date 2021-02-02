@@ -8,7 +8,7 @@ import 'package:hive/hive.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/core/base/logger.dart';
 
-import 'package:tacostream/services/jeremiah.dart';
+import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/services/watercooler.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
@@ -85,7 +85,7 @@ class _StreamViewState extends State<StreamView> {
   Widget build(BuildContext context) {
     var pinColor = pinToTop ? Theme.of(context).accentColor : Theme.of(context).disabledColor;
 
-    return Consumer3<Watercooler, ThemeService, Jeremiah>(builder: (context, wc, ts, jer, widget) {
+    return Consumer3<Watercooler, ThemeService, Snoop>(builder: (context, wc, ts, snoop, widget) {
       return Scaffold(
           appBar: AppBar(
             backgroundColor: Theme.of(context).appBarTheme.color, // really?
@@ -111,11 +111,11 @@ class _StreamViewState extends State<StreamView> {
           ),
           body: Center(
               child: ValueListenableBuilder(
-                  valueListenable: jer.listenable,
+                  valueListenable: snoop.listenable,
                   builder: (context, Box box, _) {
-                    if (jer.status == IngestStatus.noConnectionError ||
-                        jer.status == IngestStatus.reconnecting ||
-                        jer.status == IngestStatus.redditAuthError) {
+                    if (snoop.status == IngestStatus.noConnectionError ||
+                        snoop.status == IngestStatus.reconnecting ||
+                        snoop.status == IngestStatus.redditAuthError) {
                       return Center(
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                         Icon(
@@ -144,30 +144,34 @@ class _StreamViewState extends State<StreamView> {
                                   direction: Axis.horizontal,
                                   children: [
                                     Icon(FontAwesomeIcons.redoAlt,
-                                        color: (jer.status == IngestStatus.reconnecting)
+                                        color: (snoop.status == IngestStatus.reconnecting)
                                             ? Theme.of(context).disabledColor
                                             : Theme.of(context).textTheme.button.color),
                                     Padding(
                                       padding: const EdgeInsets.all(8.0),
                                       child: Text(
-                                          (jer.status == IngestStatus.reconnecting)
+                                          (snoop.status == IngestStatus.reconnecting)
                                               ? 'Reconnecting...'
                                               : 'Reconnect',
                                           style: Theme.of(context).textTheme.button.copyWith(
-                                              color: (jer.status == IngestStatus.reconnecting)
+                                              color: (snoop.status == IngestStatus.reconnecting)
                                                   ? Theme.of(context).disabledColor
                                                   : Theme.of(context).textTheme.button.color)),
                                     )
                                   ]),
                             ),
-                            onPressed:
-                                (jer.status == IngestStatus.reconnecting) ? null : jer.reconnect,
+                            onPressed: (snoop.status == IngestStatus.reconnecting)
+                                ? null
+                                : snoop.reconnect,
                           ),
                         )
                       ]));
                     }
 
-                    if (wc.length < 5 || wc.status == WatercoolerStatus.clearing) {
+                    if (wc.length < 5 ||
+                        wc.status == WatercoolerStatus.clearing ||
+                        snoop.status == IngestStatus.loggedIn ||
+                        snoop.status == IngestStatus.loggingIn) {
                       return Center(
                           child: Column(mainAxisSize: MainAxisSize.min, children: [
                         SpinKitDoubleBounce(

@@ -1,24 +1,24 @@
 # tacostream - never. log. off.
 
-streams /r/neoliberal's busyass discussion thread in a more chat-like format.
+Streams /r/neoliberal's busyass discussion thread.
 
 ## wtf for?
 
-why not? 
+Why not? 
 
-## what's the plan?
+## What's the plan?
 
-1. to not get bloated.
-2. stay focused on the dt.
-3. have fun with it.
+1. To not get bloated.
+2. Stay focused on the dt.
+3. Have fun with it.
 
-## how does it work?
+## How do i build it?
 
-1. an ingestion service listens to r/neoliberal for new comments
-2. comments on the dt get tossed on to a pub/sub topic.
-3. a small web service subscribes to the topic and listens for connections from the app.
-4. any new comments the web service gets via the subscription get relayed to any connected apps.
+Just like any other flutter project.
 
-### why add all these extra services?
+### Hive type adaptors
 
-there's only so much you can do with an app. 
+These need to be generated before running a build:
+
+        flutter pub get
+        flutter packages pub run build_runner build

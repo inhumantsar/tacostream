@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/models/comment.dart';
-import 'package:tacostream/services/jeremiah.dart';
+import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/views/thread/thread.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -26,12 +26,12 @@ class ParentWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<Jeremiah, ThemeService>(builder: (context, jeremiah, themeService, widget) {
+    return Consumer2<Snoop, ThemeService>(builder: (context, snoop, themeService, widget) {
       final ThemeData themeData = this.customTheme ?? Theme.of(context);
       var markdownSS = customMarkdownSS ?? themeService.mdTheme;
       markdownSS = markdownSS.copyWith(p: themeData.textTheme.caption);
 
-      final parent = jeremiah.getCommentById(child.parentId.substring(3));
+      final parent = snoop.getCommentById(child.parentId.substring(3));
       var parentBody =
           parent.body.length < 280 ? parent.body : parent.body.substring(0, 280) + '...';
 

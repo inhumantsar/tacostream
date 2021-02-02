@@ -5,8 +5,9 @@ import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/models/comment.dart';
+import 'package:tacostream/models/redditor.dart';
 import 'package:tacostream/services/jeeves.dart';
-import 'package:tacostream/services/jeremiah.dart';
+import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/services/watercooler.dart';
 import 'package:tacostream/views/stream/stream.dart';
@@ -19,16 +20,17 @@ void main() async {
   await Hive.initFlutter();
 
   Hive.registerAdapter(CommentAdapter());
+  Hive.registerAdapter(RedditorAdapter());
   var commentsBox = await Hive.openBox<Comment>('comments');
   var prefsBox = await Hive.openBox('prefs');
 
   locator.registerLazySingleton(() => Jeeves(prefsBox));
-  locator.registerLazySingleton(() => Jeremiah());
+  locator.registerLazySingleton(() => Snoop());
   locator.registerLazySingleton(() => ThemeService());
   locator.registerLazySingleton(() => Watercooler(commentsBox));
 
   runApp(MultiProvider(providers: [
-    ChangeNotifierProvider.value(value: locator<Jeremiah>()),
+    ChangeNotifierProvider.value(value: locator<Snoop>()),
     Provider.value(value: locator<Jeeves>()),
     ChangeNotifierProvider.value(value: locator<Watercooler>()),
     ChangeNotifierProvider.value(
