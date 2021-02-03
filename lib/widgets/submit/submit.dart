@@ -65,89 +65,55 @@ class _SubmitWidgetState extends State<SubmitWidget> {
 
     return Consumer<Snoop>(builder: (context, snoop, widget) {
       return Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 150),
-            // transitionBuilder: AnimatedSwitcher.defaultTransitionBuilder,
-            transitionBuilder: (Widget child, Animation<double> animation) {
-              return SlideTransition(
-                position:
-                    Tween<Offset>(begin: Offset(1.0, 0.0), end: Offset(0, 0)).animate(animation),
-                child: FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-              );
-              // return ScaleTransition(child: child, scale: animation);
-            },
-            child: showSubmitArea
-                ? Material(
-                    elevation: 3,
-                    color: primary,
-                    borderRadius: BorderRadius.horizontal(
-                        left: Radius.circular(4.0), right: Radius.circular(4.0)),
-                    clipBehavior: Clip.antiAlias,
-                    child: Row(
-                      children: [
-                        IconButton(
-                          // padding: const EdgeInsets.all(0),
-                          visualDensity: VisualDensity.compact,
-                          icon: Icon(Icons.cancel),
-                          color: secondary,
-                          onPressed: toggleSubmit,
-                        ),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(0, 4.0, 0, 12),
-                            child: TextField(
-                              readOnly: submitRO,
-                              style:
-                                  Theme.of(context).textTheme.bodyText1.copyWith(color: onPrimary),
-                              decoration: InputDecoration(
-                                  isDense: true,
-                                  focusedBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(color: secondary))),
-                              controller: _textEditingController,
-                              textInputAction: TextInputAction.newline,
-                              keyboardType: TextInputType.multiline,
-                              maxLines: null,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                            padding: const EdgeInsets.all(0),
-                            icon: Icon(Icons.send),
-                            visualDensity: VisualDensity.compact,
-                            color: secondary,
-                            onPressed: () {
-                              readOnly = true;
-                              snoop.submitReply(_textEditingController.text).then((_) {
-                                _textEditingController.clear();
-                                readOnly = false;
-                              });
-                            })
-                      ],
+          padding: const EdgeInsets.all(12.0),
+          child: Material(
+            elevation: 3,
+            color: primary,
+            borderRadius:
+                BorderRadius.horizontal(left: Radius.circular(4.0), right: Radius.circular(4.0)),
+            clipBehavior: Clip.antiAlias,
+            child: Row(
+              children: [
+                // IconButton(
+                //   // padding: const EdgeInsets.all(0),
+                //   visualDensity: VisualDensity.compact,
+                //   icon: Icon(Icons.cancel),
+                //   color: secondary,
+                //   onPressed: toggleSubmit,
+                // ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 4.0, 0, 12),
+                    child: TextField(
+                      autofocus: true,
+                      readOnly: submitRO,
+                      style: Theme.of(context).textTheme.bodyText1.copyWith(color: onPrimary),
+                      decoration: InputDecoration(
+                          isDense: true,
+                          focusedBorder:
+                              UnderlineInputBorder(borderSide: BorderSide(color: secondary))),
+                      controller: _textEditingController,
+                      textInputAction: TextInputAction.newline,
+                      keyboardType: TextInputType.multiline,
+                      maxLines: null,
                     ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Material(
-                            elevation: 3,
-                            color: primary,
-                            shape: CircleBorder(),
-                            child: IconButton(
-                              visualDensity: VisualDensity.compact,
-                              padding: const EdgeInsets.all(0),
-                              icon: Icon(FontAwesomeIcons.solidCommentAlt),
-                              color: secondary,
-                              onPressed: toggleSubmit,
-                            ))
-                      ],
-                    ))),
-      );
+                  ),
+                ),
+                IconButton(
+                    padding: const EdgeInsets.all(0),
+                    icon: Icon(Icons.send),
+                    visualDensity: VisualDensity.compact,
+                    color: secondary,
+                    onPressed: () {
+                      readOnly = true;
+                      snoop.submitReply(_textEditingController.text).then((_) {
+                        _textEditingController.clear();
+                        readOnly = false;
+                      });
+                    })
+              ],
+            ),
+          ));
     });
   }
 }

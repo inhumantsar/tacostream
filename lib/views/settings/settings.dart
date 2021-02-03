@@ -22,7 +22,12 @@ class SettingsView extends StatelessWidget {
                         Row(children: [
                           Text('Account', style: Theme.of(context).textTheme.bodyText1),
                           Spacer(),
-                          Text('Sign in to post and reply.',
+                          Text(
+                              snoop.loginStatus == LoginStatus.loggedIn
+                                  ? snoop.loggedInUsername != null
+                                      ? 'Signed in as ${snoop.loggedInUsername}'
+                                      : 'Signing in...'
+                                  : 'Sign in to post and reply.',
                               style: Theme.of(context).textTheme.caption)
                         ]),
                         Center(
@@ -47,8 +52,8 @@ class SettingsView extends StatelessWidget {
                                               snoop.loginStatus == LoginStatus.loggingOut
                                           ? Text('Please wait...')
                                           : snoop.loginStatus == LoginStatus.loggedIn
-                                              ? Text('Log Out')
-                                              : Text('Log in with Reddit'),
+                                              ? Text('Sign Out')
+                                              : Text('Sign in with Reddit'),
                                     )
                                   ])),
                         )),
@@ -136,7 +141,7 @@ class SettingsView extends StatelessWidget {
                         Divider(),
                         Padding(
                           padding: const EdgeInsets.all(8.0),
-                          child: Text('Themes'),
+                          child: Text('Theme'),
                         ),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 12),

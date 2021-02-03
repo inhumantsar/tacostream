@@ -94,26 +94,32 @@ class _StreamViewState extends State<StreamView> {
     return Consumer3<Watercooler, ThemeService, Snoop>(builder: (context, wc, ts, snoop, widget) {
       return Scaffold(
           appBar: AppBar(
-            backgroundColor: Theme.of(context).appBarTheme.color, // really?
-            title: Text("🌮 tacostream"),
-            actions: [
-              IconButton(
-                icon: Icon(FontAwesomeIcons.cog),
-                color: secondary,
-                onPressed: () => Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (context) => SettingsView())),
-              ),
-              IconButton(
-                  icon: Icon(ts.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
-                  color: ts.darkMode ? Theme.of(context).disabledColor : secondary,
-                  onPressed: ts.toggleDarkMode),
-              IconButton(
-                icon: Icon(pinIcon),
-                color: pinToTop ? secondary : Theme.of(context).disabledColor,
-                onPressed: togglePin,
-              )
-            ],
-          ),
+              backgroundColor: Theme.of(context).appBarTheme.color, // really?
+              title: Text("🌮 tacostream"),
+              actions: [
+                IconButton(
+                  icon: Icon(FontAwesomeIcons.cog),
+                  color: secondary,
+                  onPressed: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (context) => SettingsView())),
+                ),
+                IconButton(
+                    icon: Icon(ts.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
+                    color: ts.darkMode ? Theme.of(context).disabledColor : secondary,
+                    onPressed: ts.toggleDarkMode),
+                IconButton(
+                  padding: const EdgeInsets.all(0),
+                  icon: Icon(
+                      showSubmitArea ? FontAwesomeIcons.solidComment : FontAwesomeIcons.comment),
+                  color: secondary,
+                  onPressed: () => setState(() => showSubmitArea = !showSubmitArea),
+                ),
+                IconButton(
+                  icon: Icon(pinIcon),
+                  color: pinToTop ? secondary : Theme.of(context).disabledColor,
+                  onPressed: togglePin,
+                ),
+              ]),
           body: Center(
               child: ValueListenableBuilder(
                   valueListenable: snoop.listenable,
@@ -158,7 +164,24 @@ class _StreamViewState extends State<StreamView> {
 
                                 return CommentWidget(comment: wc.values.elementAt(index));
                               })),
-                      snoop.loginStatus == LoginStatus.loggedIn ? SubmitWidget() : SizedBox.shrink()
+                      snoop.loginStatus == LoginStatus.loggedIn
+                          ? AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 150),
+                              // transitionBuilder: AnimatedSwitcher.defaultTransitionBuilder,
+                              transitionBuilder: (Widget child, Animation<double> animation) {
+                                return SlideTransition(
+                                  position:
+                                      Tween<Offset>(begin: Offset(0.0, 0.1), end: Offset(0, 0))
+                                          .animate(animation),
+                                  child: FadeTransition(
+                                    opacity: animation,
+                                    child: child,
+                                  ),
+                                );
+                                // return ScaleTransition(child: child, scale: animation);
+                              },
+                              child: showSubmitArea ? SubmitWidget() : SizedBox.shrink())
+                          : SizedBox.shrink()
                     ]);
                   })));
     });

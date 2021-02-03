@@ -238,6 +238,7 @@ class Snoop extends ChangeNotifier with BaseService {
 
   // reddit
   bool get hasAccounts => _jeeves.accounts.length > 0;
+  String get loggedInUsername => hasAccounts ? _jeeves.accounts[0].displayName : null;
 
   Future<void> logout() async {
     _updateStatus(login: LoginStatus.loggingOut);
@@ -373,6 +374,7 @@ class Snoop extends ChangeNotifier with BaseService {
     reddit.user.me().then((value) {
       _jeeves.addAccount(Redditor.fromDraw(value, reddit.auth.credentials.toJson()));
       this.log.debug('User stored.');
+      notifyListeners();
     });
     return reddit;
   }

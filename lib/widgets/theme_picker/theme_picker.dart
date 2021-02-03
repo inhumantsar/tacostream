@@ -60,18 +60,16 @@ class ThemePickerWidget extends StatelessWidget {
                                 child: CommentWidget(
                                     theme: theme.dark, mdTheme: theme.markdownDark)))),
                     Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: RawMaterialButton(
-                          padding: EdgeInsets.all(3),
-                          shape: CircleBorder(),
-                          child: Icon(
-                              themeService.baseTheme.name == theme.name
-                                  ? FontAwesomeIcons.solidCheckCircle
-                                  : FontAwesomeIcons.circle,
-                              size: 16),
-                          fillColor: Theme.of(context).colorScheme.surface,
-                          onPressed: () => themeService.theme = theme.name),
-                    ),
+                        padding: const EdgeInsets.all(8.0),
+                        child: RawMaterialButton(
+                            // padding: EdgeInsets.all(3),
+                            shape: CircleBorder(),
+                            visualDensity: VisualDensity.compact,
+                            child: themeService.baseTheme.name != theme.name
+                                ? Container(width: 20, height: 20)
+                                : Icon(FontAwesomeIcons.check, size: 16),
+                            fillColor: Theme.of(context).colorScheme.surface,
+                            onPressed: () => themeService.theme = theme.name)),
                   ],
                 ));
           }),
