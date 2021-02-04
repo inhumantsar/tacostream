@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/core/base/logger.dart';
 import 'package:tacostream/models/comment.dart';
 import 'package:tacostream/services/snoop.dart';
-import 'package:tacostream/services/theme.dart';
 
 class ReplyWidget extends StatefulWidget {
+  /// inline reply entry for comments
+
   final Comment comment;
   final Function callback;
   ReplyWidget(this.comment, this.callback);
@@ -70,6 +70,7 @@ class _ReplyWidgetState extends State<ReplyWidget> {
             clipBehavior: Clip.antiAlias,
             child: Row(
               children: [
+                // text field
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(8, 4.0, 0, 12),
@@ -88,6 +89,7 @@ class _ReplyWidgetState extends State<ReplyWidget> {
                     ),
                   ),
                 ),
+                // submit button
                 IconButton(
                     padding: const EdgeInsets.all(0),
                     icon: Icon(Icons.send),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
@@ -20,6 +19,9 @@ class SettingsView extends StatelessWidget {
                       padding: EdgeInsets.fromLTRB(8, 16, 8, 4),
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Row(children: [
+                          //
+                          // login / logout
+                          //
                           Text('Account', style: Theme.of(context).textTheme.bodyText1),
                           Spacer(),
                           Text(
@@ -67,6 +69,9 @@ class SettingsView extends StatelessWidget {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
+                            //
+                            // font size
+                            //
                             Padding(
                                 padding: const EdgeInsets.fromLTRB(25, 8, 25, 8),
                                 child: Flex(direction: Axis.horizontal, children: [
@@ -115,6 +120,9 @@ class SettingsView extends StatelessWidget {
                                           shape: CircleBorder())),
                                 ])),
                             Divider(),
+                            //
+                            // dark mode
+                            //
                             FlatButton(
                               onPressed: ts.toggleDarkMode,
                               child: Padding(
@@ -139,6 +147,9 @@ class SettingsView extends StatelessWidget {
                           ],
                         ),
                         Divider(),
+                        //
+                        // theme
+                        //
                         Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Text('Theme'),
@@ -152,6 +163,9 @@ class SettingsView extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: Text('Advanced', style: Theme.of(context).textTheme.bodyText1),
                         ),
+                        //
+                        // cache settings
+                        //
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -211,10 +225,12 @@ class SettingsView extends StatelessWidget {
                                 Checkbox(
                                     value: wc.clearCacheAtStartup,
                                     onChanged: (value) => wc.clearCacheAtStartup = value),
-                                // Text('', style: themeService.theme.textTheme.caption)
                               ])),
                         ),
 
+                        //
+                        // horizontal card list
+                        //
                         // Divider(),
                         // Row(children: [
                         //   Text('Cards', style: Theme.of(context).textTheme.bodyText1),

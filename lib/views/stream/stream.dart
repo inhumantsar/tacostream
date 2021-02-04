@@ -86,9 +86,6 @@ class _StreamViewState extends State<StreamView> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryVariant = Theme.of(context).colorScheme.primaryVariant;
-    final primary = Theme.of(context).colorScheme.primary;
-    final onPrimary = Theme.of(context).colorScheme.onPrimary;
     final secondary = Theme.of(context).colorScheme.secondary;
 
     return Consumer3<Watercooler, ThemeService, Snoop>(builder: (context, wc, ts, snoop, widget) {
@@ -97,16 +94,19 @@ class _StreamViewState extends State<StreamView> {
               backgroundColor: Theme.of(context).appBarTheme.color, // really?
               title: Text("🌮 tacostream"),
               actions: [
+                // settings
                 IconButton(
                   icon: Icon(FontAwesomeIcons.cog),
                   color: secondary,
                   onPressed: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (context) => SettingsView())),
                 ),
+                // dark mode
                 IconButton(
                     icon: Icon(ts.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
                     color: ts.darkMode ? Theme.of(context).disabledColor : secondary,
                     onPressed: ts.toggleDarkMode),
+                // top level comment entry
                 IconButton(
                   padding: const EdgeInsets.all(0),
                   icon: Icon(
@@ -114,6 +114,7 @@ class _StreamViewState extends State<StreamView> {
                   color: secondary,
                   onPressed: () => setState(() => showSubmitArea = !showSubmitArea),
                 ),
+                // scroll to top toggle
                 IconButton(
                   icon: Icon(pinIcon),
                   color: pinToTop ? secondary : Theme.of(context).disabledColor,
@@ -122,13 +123,16 @@ class _StreamViewState extends State<StreamView> {
               ]),
           body: Center(
               child: ValueListenableBuilder(
+                  // box listenable gives us a stream to work with
                   valueListenable: snoop.listenable,
                   builder: (context, Box box, _) {
+                    // reconnect panel
                     if (snoop.status == IngestStatus.noConnectionError ||
                         snoop.status == IngestStatus.redditAuthError) {
                       return ReconnectWidget();
                     }
 
+                    // throbber
                     if (wc.length < 5 ||
                         wc.status == WatercoolerStatus.clearing ||
                         snoop.status == IngestStatus.reconnecting ||
@@ -144,6 +148,7 @@ class _StreamViewState extends State<StreamView> {
                     }
 
                     return Stack(alignment: AlignmentDirectional.bottomCenter, children: [
+                      // comment list
                       Container(
                           alignment: Alignment.topLeft,
                           child: ListView.separated(
@@ -164,10 +169,10 @@ class _StreamViewState extends State<StreamView> {
 
                                 return CommentWidget(comment: wc.values.elementAt(index));
                               })),
+                      // top level comment entry
                       snoop.loginStatus == LoginStatus.loggedIn
                           ? AnimatedSwitcher(
                               duration: const Duration(milliseconds: 150),
-                              // transitionBuilder: AnimatedSwitcher.defaultTransitionBuilder,
                               transitionBuilder: (Widget child, Animation<double> animation) {
                                 return SlideTransition(
                                   position:
@@ -178,7 +183,6 @@ class _StreamViewState extends State<StreamView> {
                                     child: child,
                                   ),
                                 );
-                                // return ScaleTransition(child: child, scale: animation);
                               },
                               child: showSubmitArea ? SubmitWidget() : SizedBox.shrink())
                           : SizedBox.shrink()

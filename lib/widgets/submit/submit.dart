@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:tacostream/core/base/logger.dart';
 import 'package:tacostream/services/snoop.dart';
-import 'package:tacostream/services/theme.dart';
 
 class SubmitWidget extends StatefulWidget {
+  /// Offer text field for submitting top-level comments.
+
   SubmitWidget();
 
   @override
@@ -74,13 +74,7 @@ class _SubmitWidgetState extends State<SubmitWidget> {
             clipBehavior: Clip.antiAlias,
             child: Row(
               children: [
-                // IconButton(
-                //   // padding: const EdgeInsets.all(0),
-                //   visualDensity: VisualDensity.compact,
-                //   icon: Icon(Icons.cancel),
-                //   color: secondary,
-                //   onPressed: toggleSubmit,
-                // ),
+                // text area
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(8, 4.0, 0, 12),
@@ -99,6 +93,7 @@ class _SubmitWidgetState extends State<SubmitWidget> {
                     ),
                   ),
                 ),
+                // submit button
                 IconButton(
                     padding: const EdgeInsets.all(0),
                     icon: Icon(Icons.send),

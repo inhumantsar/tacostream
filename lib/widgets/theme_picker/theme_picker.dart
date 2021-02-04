@@ -6,6 +6,8 @@ import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
 
 class ThemePickerWidget extends StatelessWidget {
+  /// Display a list theme previews and offer a switch button.
+  ///
   static Color lighten(Color color, [double amount = .1]) {
     assert(amount >= 0 && amount <= 1);
 
@@ -62,7 +64,6 @@ class ThemePickerWidget extends StatelessWidget {
                     Padding(
                         padding: const EdgeInsets.all(8.0),
                         child: RawMaterialButton(
-                            // padding: EdgeInsets.all(3),
                             shape: CircleBorder(),
                             visualDensity: VisualDensity.compact,
                             child: themeService.baseTheme.name != theme.name

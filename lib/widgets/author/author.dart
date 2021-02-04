@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 
+/// show author and flair
 class Author extends StatelessWidget {
   final String author;
   final String flairText;

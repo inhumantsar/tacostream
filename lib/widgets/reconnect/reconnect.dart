@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:tacostream/services/snoop.dart';
 
 class ReconnectWidget extends StatelessWidget {
+  /// A generic "oops" panel for connection issues
+
   @override
   Widget build(BuildContext context) {
     return Consumer<Snoop>(

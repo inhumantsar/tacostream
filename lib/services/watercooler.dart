@@ -11,6 +11,8 @@ import 'package:tacostream/services/jeeves.dart';
 
 enum WatercoolerStatus { clearing, pruning, ready, notReady }
 
+/// persistent comment cache
+/// TODO: probably ditch the box and stick to a simple in-memory list
 class Watercooler extends ChangeNotifier with BaseService {
   final Box<Comment> _box;
   final _jeeves = GetIt.instance<Jeeves>();

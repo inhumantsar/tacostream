@@ -38,7 +38,6 @@ class ThreadWidget extends StatelessWidget {
               ListView.builder(
                   physics: ScrollPhysics(),
                   shrinkWrap: true,
-                  // separatorBuilder: (ctx, _) => Divider(),
                   itemCount: thread.replies.length,
                   itemBuilder: (ctx, idx) =>
                       ThreadWidget(thread.replies[idx], level + 1, highlightId: highlightId))

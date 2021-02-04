@@ -17,20 +17,25 @@ class CommentWidget extends StatefulWidget {
   final Comment comment;
   final bool showFlair;
   final bool showParent;
+
+  /// lightly highlight one comment in a thread
   final bool highlight;
-  final int level;
+
+  /// force a custom theme (for theme picker mainly)
   final ThemeData theme;
+
+  /// force a custom markdown theme (for theme picker mainly)
   final MarkdownStyleSheet mdTheme;
 
   CommentWidget(
       {this.comment,
       this.showFlair = true,
       this.showParent = true,
-      this.level = 1,
       this.highlight = false,
       this.theme,
       this.mdTheme});
 
+  /// dummy comment in case [comment] is null. (for theme picker mainly)
   static Comment get dummyComment => new Comment(
       author: 'theRealDubya',
       authorFlairImageUrl: 'https://emoji.redditmedia.com/1uhosge0o2231_t5_2sfn3/nato',
@@ -69,7 +74,7 @@ class _CommentWidgetState extends State<CommentWidget> {
     return Consumer2<Snoop, ThemeService>(builder: (context, snoop, ts, widget) {
       final c = this.widget.comment ?? CommentWidget.dummyComment;
       final t = this.widget.theme ?? Theme.of(context);
-      final secondary = t.colorScheme.secondary;
+
       return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
@@ -81,8 +86,7 @@ class _CommentWidgetState extends State<CommentWidget> {
               child: Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    // if parent_id starts with t1, then this is a reply and we
-                    // should fetch the parent
+                    // fetch parent if parent != the dt itself
                     this.widget.showParent &&
                             c.parentId.startsWith('t1_') &&
                             snoop.commentIds.contains(c.parentId.substring(3))
@@ -94,10 +98,11 @@ class _CommentWidgetState extends State<CommentWidget> {
                                 customTheme: t),
                           )
                         : SizedBox.shrink(),
+
+                    // main comment body
                     Row(children: [
                       Expanded(
                           child: MarkdownBody(
-                        // fitContent: false,
                         styleSheet: this.widget.mdTheme ?? ts.mdTheme,
                         data: c.body ?? "",
                         onTapLink: (text, href, title) => _launchUrl(href),
@@ -107,6 +112,7 @@ class _CommentWidgetState extends State<CommentWidget> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         direction: Axis.horizontal,
                         children: [
+                          // author
                           Expanded(
                               child: GestureDetector(
                                   onTap: () => _launchUrl("https://reddit.com/u/" + c.author),
@@ -119,11 +125,12 @@ class _CommentWidgetState extends State<CommentWidget> {
                                           customTheme: t),
                                     ),
                                   ))),
+
+                          // reply toggle button
                           Container(
                               height: 25,
                               width: 70,
                               child: RawMaterialButton(
-                                // fillColor: t.colorScheme.surface,
                                 onPressed: () =>
                                     setState(() => this.showReplyArea = !this.showReplyArea),
                                 child: Row(
@@ -144,9 +151,10 @@ class _CommentWidgetState extends State<CommentWidget> {
                                     ]),
                               ))
                         ]),
+
+                    // reply area
                     AnimatedSwitcher(
                         duration: const Duration(milliseconds: 150),
-                        // transitionBuilder: AnimatedSwitcher.defaultTransitionBuilder,
                         transitionBuilder: (Widget child, Animation<double> animation) {
                           return SlideTransition(
                             position: Tween<Offset>(begin: Offset(0.0, 0.1), end: Offset(0, 0))
@@ -156,7 +164,6 @@ class _CommentWidgetState extends State<CommentWidget> {
                               child: child,
                             ),
                           );
-                          // return ScaleTransition(child: child, scale: animation);
                         },
                         child: this.showReplyArea
                             ? Padding(
