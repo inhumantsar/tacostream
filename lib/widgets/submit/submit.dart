@@ -6,8 +6,9 @@ import 'package:tacostream/services/snoop.dart';
 
 class SubmitWidget extends StatefulWidget {
   /// Offer text field for submitting top-level comments.
+  final Function callback;
 
-  SubmitWidget();
+  SubmitWidget([this.callback]);
 
   @override
   _SubmitWidgetState createState() => _SubmitWidgetState();
@@ -16,7 +17,7 @@ class SubmitWidget extends StatefulWidget {
 class _SubmitWidgetState extends State<SubmitWidget> {
   final log = BaseLogger('SubmitWidget');
   bool showSubmitArea = false;
-  bool submitRO = false;
+  bool _readOnly = false;
   double _inputHeight = 50;
   final TextEditingController _textEditingController = TextEditingController();
 
@@ -35,9 +36,7 @@ class _SubmitWidgetState extends State<SubmitWidget> {
   void _checkInputHeight() async {
     int count = _textEditingController.text.split('\n').length;
 
-    if (count == 0 && _inputHeight == 50.0) {
-      return;
-    }
+    if (count == 0 && _inputHeight == 50.0) return;
     if (count <= 5) {
       // use a maximum height of 6 rows
       // height values can be adapted based on the font size
@@ -55,7 +54,7 @@ class _SubmitWidgetState extends State<SubmitWidget> {
     });
   }
 
-  set readOnly(val) => setState(() => submitRO = val);
+  set readOnly(val) => setState(() => _readOnly = val);
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +79,7 @@ class _SubmitWidgetState extends State<SubmitWidget> {
                     padding: const EdgeInsets.fromLTRB(8, 4.0, 0, 12),
                     child: TextField(
                       autofocus: true,
-                      readOnly: submitRO,
+                      readOnly: _readOnly,
                       style: Theme.of(context).textTheme.bodyText1.copyWith(color: onPrimary),
                       decoration: InputDecoration(
                           isDense: true,
@@ -104,6 +103,8 @@ class _SubmitWidgetState extends State<SubmitWidget> {
                       snoop.submitReply(_textEditingController.text).then((_) {
                         _textEditingController.clear();
                         readOnly = false;
+                        toggleSubmit();
+                        this.widget.callback();
                       });
                     })
               ],

@@ -6,7 +6,7 @@ description: Riding the DT
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
-version: 1.4.3+13
+version: 1.4.4+14
 
 environment:
   sdk: ">=2.7.0 <3.0.0"

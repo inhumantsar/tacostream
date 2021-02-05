@@ -11,6 +11,7 @@ import 'package:tacostream/core/base/logger.dart';
 import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/services/watercooler.dart';
+import 'package:tacostream/views/userComments/userComments.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
 import 'package:tacostream/views/settings/settings.dart';
 import 'package:tacostream/widgets/reconnect/reconnect.dart';
@@ -25,7 +26,7 @@ class _StreamViewState extends State<StreamView> {
   bool pinToTop = true;
   IconData pinIcon = FontAwesomeIcons.arrowCircleUp;
   ScrollController scrollController;
-  bool showSubmitArea = false;
+  bool _showSubmitArea = false;
   final log = BaseLogger('StreamView');
 
   @override
@@ -46,6 +47,11 @@ class _StreamViewState extends State<StreamView> {
   void dispose() {
     this.scrollController.dispose();
     super.dispose();
+  }
+
+  get showSubmitArea => _showSubmitArea;
+  set showSubmitArea(val) {
+    setState(() => _showSubmitArea = val);
   }
 
   bool atMaxExtent() {
@@ -101,16 +107,19 @@ class _StreamViewState extends State<StreamView> {
                   onPressed: () => Navigator.of(context)
                       .push(MaterialPageRoute(builder: (context) => SettingsView())),
                 ),
-                // dark mode
-                IconButton(
-                    icon: Icon(ts.darkMode ? Icons.lightbulb_outline : Icons.lightbulb),
-                    color: ts.darkMode ? Theme.of(context).disabledColor : secondary,
-                    onPressed: ts.toggleDarkMode),
-                // top level comment entry
+                // logged in user's comments
                 IconButton(
                   padding: const EdgeInsets.all(0),
-                  icon: Icon(
-                      showSubmitArea ? FontAwesomeIcons.solidComment : FontAwesomeIcons.comment),
+                  icon: Icon(FontAwesomeIcons.comment),
+                  color: secondary,
+                  onPressed: () => Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (context) => UserCommentsView())),
+                ), // top level comment entry
+                IconButton(
+                  padding: const EdgeInsets.all(0),
+                  icon: Icon(showSubmitArea
+                      ? FontAwesomeIcons.plusSquare
+                      : FontAwesomeIcons.solidPlusSquare),
                   color: secondary,
                   onPressed: () => setState(() => showSubmitArea = !showSubmitArea),
                 ),
@@ -169,6 +178,7 @@ class _StreamViewState extends State<StreamView> {
 
                                 return CommentWidget(comment: wc.values.elementAt(index));
                               })),
+
                       // top level comment entry
                       snoop.loginStatus == LoginStatus.loggedIn
                           ? AnimatedSwitcher(
@@ -184,7 +194,9 @@ class _StreamViewState extends State<StreamView> {
                                   ),
                                 );
                               },
-                              child: showSubmitArea ? SubmitWidget() : SizedBox.shrink())
+                              child: showSubmitArea
+                                  ? SubmitWidget(() => this.showSubmitArea = false)
+                                  : SizedBox.shrink())
                           : SizedBox.shrink()
                     ]);
                   })));

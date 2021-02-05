@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:tacostream/core/base/logger.dart';
 import 'package:tacostream/models/comment.dart';
 import 'package:tacostream/services/snoop.dart';
+import 'package:tacostream/widgets/comment/comment.dart';
 
 class ReplyWidget extends StatefulWidget {
   /// inline reply entry for comments
@@ -18,7 +19,8 @@ class ReplyWidget extends StatefulWidget {
 
 class _ReplyWidgetState extends State<ReplyWidget> {
   final log = BaseLogger('ReplyWidget');
-  bool replyRO = false;
+  bool _readOnly = false;
+  bool _replyComplete = false;
   double inputHeight = 50;
   final textEditingController = TextEditingController();
 
@@ -50,8 +52,11 @@ class _ReplyWidgetState extends State<ReplyWidget> {
     }
   }
 
-  get readOnly => replyRO;
-  set readOnly(val) => setState(() => replyRO = val);
+  get readOnly => _readOnly;
+  set readOnly(val) => setState(() => _readOnly = val);
+
+  get replyComplete => _replyComplete;
+  set replyComplete(val) => setState(() => _replyComplete = val);
 
   @override
   Widget build(BuildContext context) {
@@ -60,53 +65,63 @@ class _ReplyWidgetState extends State<ReplyWidget> {
     final secondary = Theme.of(context).colorScheme.secondary;
 
     return Consumer<Snoop>(builder: (context, snoop, widget) {
-      return Padding(
-          padding: const EdgeInsets.all(0),
-          child: Material(
-            elevation: 3,
-            color: readOnly ? Theme.of(context).colorScheme.surface : primary,
-            borderRadius:
-                BorderRadius.horizontal(left: Radius.circular(4.0), right: Radius.circular(4.0)),
-            clipBehavior: Clip.antiAlias,
-            child: Row(
-              children: [
-                // text field
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 4.0, 0, 12),
-                    child: TextField(
-                      autofocus: true,
-                      readOnly: replyRO,
-                      style: Theme.of(context).textTheme.bodyText1.copyWith(color: onPrimary),
-                      decoration: InputDecoration(
-                          isDense: true,
-                          focusedBorder:
-                              UnderlineInputBorder(borderSide: BorderSide(color: secondary))),
-                      controller: textEditingController,
-                      textInputAction: TextInputAction.newline,
-                      keyboardType: TextInputType.multiline,
-                      maxLines: null,
+      if (replyComplete) {
+        return CommentWidget(
+            comment: new Comment(author: snoop.loggedInUsername, body: textEditingController.text),
+            showParent: false,
+            showReplyButton: false);
+      } else {
+        return Padding(
+            padding: const EdgeInsets.all(0),
+            child: Material(
+              elevation: 3,
+              color: readOnly ? Theme.of(context).colorScheme.surface : primary,
+              borderRadius:
+                  BorderRadius.horizontal(left: Radius.circular(4.0), right: Radius.circular(4.0)),
+              clipBehavior: Clip.antiAlias,
+              child: Row(
+                children: [
+                  // text field
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 4.0, 0, 12),
+                      child: TextField(
+                        autofocus: true,
+                        readOnly: _readOnly,
+                        style: Theme.of(context).textTheme.bodyText1.copyWith(color: onPrimary),
+                        decoration: InputDecoration(
+                            isDense: true,
+                            focusedBorder:
+                                UnderlineInputBorder(borderSide: BorderSide(color: secondary))),
+                        controller: textEditingController,
+                        textInputAction: TextInputAction.newline,
+                        keyboardType: TextInputType.multiline,
+                        maxLines: null,
+                      ),
                     ),
                   ),
-                ),
-                // submit button
-                IconButton(
-                    padding: const EdgeInsets.all(0),
-                    icon: Icon(Icons.send),
-                    visualDensity: VisualDensity.compact,
-                    color: secondary,
-                    onPressed: readOnly
-                        ? null
-                        : () {
-                            readOnly = true;
-                            snoop
-                                .submitReply(textEditingController.text,
-                                    parent: this.widget.comment)
-                                .then((_) {});
-                          })
-              ],
-            ),
-          ));
+                  // submit button
+                  IconButton(
+                      padding: const EdgeInsets.all(0),
+                      icon: Icon(Icons.send),
+                      visualDensity: VisualDensity.compact,
+                      color: secondary,
+                      onPressed: readOnly
+                          ? null
+                          : () {
+                              readOnly = true;
+                              snoop
+                                  .submitReply(textEditingController.text,
+                                      parent: this.widget.comment)
+                                  .then((_) {
+                                replyComplete = true;
+                                this.widget.callback();
+                              });
+                            })
+                ],
+              ),
+            ));
+      }
     });
   }
 }

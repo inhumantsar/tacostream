@@ -8,6 +8,7 @@ import 'package:tacostream/models/comment.dart';
 import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/views/thread/thread.dart';
+import 'package:tacostream/views/userComments/userComments.dart';
 import 'package:tacostream/widgets/author/author.dart';
 import 'package:tacostream/widgets/comment/reply.dart';
 import 'package:tacostream/widgets/parent/parent.dart';
@@ -17,6 +18,7 @@ class CommentWidget extends StatefulWidget {
   final Comment comment;
   final bool showFlair;
   final bool showParent;
+  final bool showReplyButton;
 
   /// lightly highlight one comment in a thread
   final bool highlight;
@@ -31,6 +33,7 @@ class CommentWidget extends StatefulWidget {
       {this.comment,
       this.showFlair = true,
       this.showParent = true,
+      this.showReplyButton = true,
       this.highlight = false,
       this.theme,
       this.mdTheme});
@@ -56,6 +59,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse hendrerit n
 class _CommentWidgetState extends State<CommentWidget> {
   final log = BaseLogger('CommentWidget');
   bool showReplyArea = false;
+  bool _showReplyButton;
 
   _launchUrl(url) async {
     if (await canLaunch(url)) {
@@ -65,8 +69,16 @@ class _CommentWidgetState extends State<CommentWidget> {
     }
   }
 
+  @override
+  void initState() {
+    _showReplyButton = this.widget.showReplyButton;
+    super.initState();
+  }
+
   void replyCallback() {
-    // reload thread?
+    setState(() {
+      _showReplyButton = false;
+    });
   }
 
   @override
@@ -77,10 +89,15 @@ class _CommentWidgetState extends State<CommentWidget> {
 
       return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () {
-            log.debug('Opening thread view with comment: ${c.runtimeType} ${c.id}');
-            Navigator.of(context).push(MaterialPageRoute(builder: (context) => ThreadView(c)));
-          },
+          // fresh replies aren't actual comments and won't have an id, opening a
+          // thread for them would not work.
+          onTap: c.id == null
+              ? () {}
+              : () {
+                  log.debug('Opening thread view with comment: ${c.runtimeType} ${c.id}');
+                  Navigator.of(context)
+                      .push(MaterialPageRoute(builder: (context) => ThreadView(c)));
+                },
           child: Container(
               color: this.widget.highlight ? t.colorScheme.primaryVariant : null,
               child: Padding(
@@ -115,7 +132,8 @@ class _CommentWidgetState extends State<CommentWidget> {
                           // author
                           Expanded(
                               child: GestureDetector(
-                                  onTap: () => _launchUrl("https://reddit.com/u/" + c.author),
+                                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                                      builder: (context) => UserCommentsView(c.author))),
                                   child: Container(
                                     alignment: Alignment.centerLeft,
                                     child: Padding(
@@ -127,29 +145,31 @@ class _CommentWidgetState extends State<CommentWidget> {
                                   ))),
 
                           // reply toggle button
-                          Container(
-                              height: 25,
-                              width: 70,
-                              child: RawMaterialButton(
-                                onPressed: () =>
-                                    setState(() => this.showReplyArea = !this.showReplyArea),
-                                child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Text(this.showReplyArea ? 'Cancel' : 'Reply',
-                                          textScaleFactor: 0.9, style: t.textTheme.caption),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                                        child: Icon(
-                                            this.showReplyArea
-                                                ? Icons.cancel_outlined
-                                                : FontAwesomeIcons.reply,
-                                            size: 16,
-                                            color: t.colorScheme.onSurface.withOpacity(.5)),
-                                      ),
-                                    ]),
-                              ))
+                          _showReplyButton
+                              ? Container(
+                                  height: 25,
+                                  width: 70,
+                                  child: RawMaterialButton(
+                                    onPressed: () =>
+                                        setState(() => this.showReplyArea = !this.showReplyArea),
+                                    child: Row(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          Text(this.showReplyArea ? 'Cancel' : 'Reply',
+                                              textScaleFactor: 0.9, style: t.textTheme.caption),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                                            child: Icon(
+                                                this.showReplyArea
+                                                    ? Icons.cancel_outlined
+                                                    : FontAwesomeIcons.reply,
+                                                size: 16,
+                                                color: t.colorScheme.onSurface.withOpacity(.5)),
+                                          ),
+                                        ]),
+                                  ))
+                              : SizedBox.shrink()
                         ]),
 
                     // reply area

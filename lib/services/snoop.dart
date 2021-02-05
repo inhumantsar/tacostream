@@ -52,14 +52,14 @@ class Snoop extends ChangeNotifier with BaseService {
   DateTime dtExpiration;
 
   double _ingestRate = 0;
-  double get ingestRate => _ingestRate;
+  double get ingestRate => _ingestRate.roundToDouble();
   int _ingestRateCounter = 0;
 
   int _reconnectCounter = 0;
   int _reconnectMax = 3;
 
   Timer statusLogTimer;
-  static const Duration statusLoggerInterval = Duration(seconds: 30);
+  static const Duration statusLoggerInterval = Duration(seconds: 90);
   Timer netMonTimer;
   static const Duration netMonInterval = const Duration(seconds: 10000);
 
@@ -91,6 +91,19 @@ class Snoop extends ChangeNotifier with BaseService {
         .log
         .debug('Thread built. parent: ${thread.parent.id} with ${thread.replies?.length} replies');
     return thread;
+  }
+
+  Stream<Comment> getUserComments([String username]) async* {
+    this.log.debug('getUserComments started for $username');
+    final r =
+        username == null ? await _reddit.user.me() : await _reddit.redditor(username).populate();
+
+    yield* r.comments.newest(limit: 100).asyncMap<Comment>((uc) async {
+      if (await _commentIsOnDt(uc as draw.Comment))
+        return Comment.fromDrawComment(uc as draw.Comment);
+      else
+        return null;
+    });
   }
 
   WatercoolerStatus get cacheStatus => _wc.status;
@@ -406,7 +419,7 @@ class Snoop extends ChangeNotifier with BaseService {
         'edit',
         // 'modwiki',
         // 'modself',
-        // 'history',
+        'history',
         // 'flair',
       ];
 }
