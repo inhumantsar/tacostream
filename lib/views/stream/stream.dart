@@ -110,10 +110,12 @@ class _StreamViewState extends State<StreamView> {
                 // logged in user's comments
                 IconButton(
                   padding: const EdgeInsets.all(0),
-                  icon: Icon(FontAwesomeIcons.comment),
+                  icon: Icon(FontAwesomeIcons.solidComment),
                   color: secondary,
-                  onPressed: () => Navigator.of(context)
-                      .push(MaterialPageRoute(builder: (context) => UserCommentsView())),
+                  onPressed: snoop.loggedInRedditorname.isEmpty
+                      ? null
+                      : () => Navigator.of(context)
+                          .push(MaterialPageRoute(builder: (context) => RedditorCommentsView())),
                 ), // top level comment entry
                 IconButton(
                   padding: const EdgeInsets.all(0),

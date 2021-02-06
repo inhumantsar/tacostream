@@ -7,6 +7,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_web_auth/flutter_web_auth.dart';
 import 'package:get_it/get_it.dart';
 import 'package:package_info/package_info.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:tacostream/core/base/service.dart';
 import 'package:tacostream/core/util.dart';
 import 'package:tacostream/models/comment.dart';
@@ -40,6 +41,7 @@ class Snoop extends ChangeNotifier with BaseService {
   final String subreddit = 'neoliberal';
   final String postTitle = 'Discussion Thread';
   final String postAuthor = 'jobautomator';
+  Map<String, draw.Redditor> _redditors = {};
 
   IngestStatus _status;
   LoginStatus _loginStatus = LoginStatus.loggedOut;
@@ -93,17 +95,36 @@ class Snoop extends ChangeNotifier with BaseService {
     return thread;
   }
 
-  Stream<Comment> getUserComments([String username]) async* {
-    this.log.debug('getUserComments started for $username');
-    final r =
-        username == null ? await _reddit.user.me() : await _reddit.redditor(username).populate();
+  Stream<List<Comment>> getRedditorComments([String username]) async* {
+    final start = new DateTime.now();
+    this.log.debug('getRedditorComments started for $username at ${start.toIso8601String()}');
+    final u = username ?? loggedInRedditorname;
+    final comments = ReplaySubject();
 
-    yield* r.comments.newest(limit: 100).asyncMap<Comment>((uc) async {
-      if (await _commentIsOnDt(uc as draw.Comment))
-        return Comment.fromDrawComment(uc as draw.Comment);
-      else
-        return null;
-    });
+    // build/fetch Redditor obj as necessary
+    draw.Redditor r;
+    if (_redditors.containsKey(u)) {
+      this.log.debug('getRedditorComments: found $u in the cache');
+      r = _redditors[u];
+    } else {
+      this.log.debug('getRedditorComments: populating $u from reddit');
+      r = _redditors[u] = await _reddit.redditor(u).populate();
+    }
+
+    // build list of comments incrementally, yielding the list every time
+    r.comments.newest(limit: 100);
+
+    // yield* r.comments.newest(limit: 100).asyncMap<Comment>((uc) async {
+    //   this.log.debug('getRedditorComments: got comment');
+    //   if (await _commentIsOnDt(uc as draw.Comment)) {
+    //     this.log.debug('getRedditorComments: comment is on dt');
+    //     comList.add(Comment.fromDrawComment(uc as draw.Comment));
+    //     return comList;
+    //   } else {
+    //     this.log.debug('getRedditorComments: skipping comment');
+    //     return comList;
+    //   }
+    // });
   }
 
   WatercoolerStatus get cacheStatus => _wc.status;
@@ -180,32 +201,45 @@ class Snoop extends ChangeNotifier with BaseService {
     _listenForNewComments();
   }
 
-  Future<void> validateDt(draw.Comment c) async {
-    /// confirm dt metadata is current and valid
-    final isDtExpired = dtExpiration?.isBefore(DateTime.now()) ?? false;
-    if (dtShortlink == null || isDtExpired) {
-      this.log.debug('currentDt is unknown/expired, checking if submission is DT.');
-      draw.Submission post = await c.submission.populate();
-      if (post.stickied && post.title == postTitle && post.author == postAuthor) {
-        dtSubmission = post;
-        dtShortlink = post.shortlink;
-        dtExpiration = post.createdUtc.add(Duration(days: 1));
-        this.log.debug('new dt: $dtShortlink');
-      }
-    }
-  }
-
   Future<bool> _commentIsOnDt(draw.Comment c) async {
     /// check if comment is on the current DT, adapting to daily rollovers when necessary.
     // this happens with surprising frequency
     if (c == null) {
-      this.log.warning('received a null commnet');
+      this.log.warning('received a null commet');
       return false;
     }
 
-    await validateDt(c);
-    return c.submission.shortlink == dtShortlink ? true : false;
+    draw.Submission cSubmission;
+
+    // check if dt info needs updating
+    final isDtExpired = dtExpiration?.isBefore(DateTime.now()) ?? false;
+    if (dtShortlink == null || isDtExpired) {
+      this.log.debug('currentDt is unknown/expired, checking if submission is DT.');
+      cSubmission = await c.submission.populate();
+      if (_submissionIsDt(cSubmission) && !cSubmission.locked) {
+        dtSubmission = cSubmission;
+        dtShortlink = cSubmission.shortlink;
+        dtExpiration = cSubmission.createdUtc.add(Duration(days: 1));
+        this.log.debug('new dt: $dtShortlink');
+      }
+    }
+
+    // easy match
+    if (c.submission.shortlink == dtShortlink) return true;
+
+    // less easy match, mainly to filter for comments on past DTs
+    cSubmission ??= await c.submission.populate();
+    if (_submissionIsDt(cSubmission)) return true;
+
+    // fail if none of the above matched
+    return false;
   }
+
+  /// matches old and new DTs
+  bool _submissionIsDt(draw.Submission s) => (s.stickied &&
+      s.title == postTitle &&
+      s.author == postAuthor &&
+      s.subreddit.displayName == subreddit);
 
   // Comment pipeline
   Future<draw.Comment> _newCommentsFilter(draw.Comment c) async =>
@@ -251,7 +285,7 @@ class Snoop extends ChangeNotifier with BaseService {
 
   // reddit
   bool get hasAccounts => _jeeves.accounts.length > 0;
-  String get loggedInUsername => hasAccounts ? _jeeves.accounts[0].displayName : null;
+  String get loggedInRedditorname => hasAccounts ? _jeeves.accounts[0].displayName : "";
 
   Future<void> logout() async {
     _updateStatus(login: LoginStatus.loggingOut);
@@ -285,7 +319,7 @@ class Snoop extends ChangeNotifier with BaseService {
     const clientId = 'GW3D4HqPspIgtA';
 
     if (forceAuth || _jeeves.accounts.length > 0)
-      return await _authAsUser(userAgent, clientId);
+      return await _authAsRedditor(userAgent, clientId);
     else
       return await _authAsAnon(userAgent, clientId);
   }
@@ -308,19 +342,19 @@ class Snoop extends ChangeNotifier with BaseService {
     return reddit;
   }
 
-  Future<draw.Reddit> _authAsUser(String userAgent, String clientId) async {
+  Future<draw.Reddit> _authAsRedditor(String userAgent, String clientId) async {
     var reddit;
 
     if (_jeeves.accounts.length > 0 && (_jeeves.accounts[0].credentials?.isNotEmpty ?? false)) {
-      reddit = await _authAsUserViaCache(userAgent, clientId);
+      reddit = await _authAsRedditorViaCache(userAgent, clientId);
     } else {
-      reddit = await _authAsUserViaWeb(userAgent, clientId);
+      reddit = await _authAsRedditorViaWeb(userAgent, clientId);
     }
     _loginStatus = LoginStatus.loggedIn;
     return reddit;
   }
 
-  Future<draw.Reddit> _authAsUserViaCache(String userAgent, String clientId) async {
+  Future<draw.Reddit> _authAsRedditorViaCache(String userAgent, String clientId) async {
     this.log.info('starting reddit authentication process using existing credentials');
     this.log.debug('userAgent: $userAgent');
     this.log.debug('clientId: $clientId');
@@ -330,27 +364,27 @@ class Snoop extends ChangeNotifier with BaseService {
       reddit = draw.Reddit.restoreInstalledAuthenticatedInstance(_jeeves.accounts[0].credentials,
           userAgent: userAgent, clientId: clientId);
     } catch (exc) {
-      reddit = _authAsUserViaCacheFallback(userAgent, clientId, exc);
+      reddit = _authAsRedditorViaCacheFallback(userAgent, clientId, exc);
     }
 
     try {
       reddit.user.me().then((r) => this.log.debug('confirmed user is logged in: ${r.displayName}'));
     } catch (exc) {
       this.log.debug('reddit.user.me() exc encountered:');
-      reddit = _authAsUserViaCacheFallback(userAgent, clientId, exc);
+      reddit = _authAsRedditorViaCacheFallback(userAgent, clientId, exc);
     }
     return reddit;
   }
 
-  Future<draw.Reddit> _authAsUserViaCacheFallback(
+  Future<draw.Reddit> _authAsRedditorViaCacheFallback(
       String userAgent, String clientId, Exception exc) {
     this.log.error('Unable to restore session from cached creds: $exc');
     _jeeves.addAccount(Redditor.fromMap({'id': _jeeves.accounts[0].id, 'credentials': ''}));
     this.log.info('Cached credentials cleared, retrying login.');
-    return _authAsUser(userAgent, clientId);
+    return _authAsRedditor(userAgent, clientId);
   }
 
-  Future<draw.Reddit> _authAsUserViaWeb(String userAgent, String clientId) async {
+  Future<draw.Reddit> _authAsRedditorViaWeb(String userAgent, String clientId) async {
     this.log.info('starting reddit authentication process');
     this.log.debug('userAgent: $userAgent');
     this.log.debug('clientId: $clientId');
@@ -383,10 +417,10 @@ class Snoop extends ChangeNotifier with BaseService {
       this.log.error('Unable to authorize code with reddit: $exc');
       return null;
     }
-    this.log.debug('User authorized');
+    this.log.debug('Redditor authorized');
     reddit.user.me().then((value) {
       _jeeves.addAccount(Redditor.fromDraw(value, reddit.auth.credentials.toJson()));
-      this.log.debug('User stored.');
+      this.log.debug('Redditor stored.');
       notifyListeners();
     });
     return reddit;

@@ -26,8 +26,8 @@ class SettingsView extends StatelessWidget {
                           Spacer(),
                           Text(
                               snoop.loginStatus == LoginStatus.loggedIn
-                                  ? snoop.loggedInUsername != null
-                                      ? 'Signed in as ${snoop.loggedInUsername}'
+                                  ? snoop.loggedInRedditorname != null
+                                      ? 'Signed in as ${snoop.loggedInRedditorname}'
                                       : 'Signing in...'
                                   : 'Sign in to post and reply.',
                               style: Theme.of(context).textTheme.caption)

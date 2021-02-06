@@ -67,7 +67,8 @@ class _ReplyWidgetState extends State<ReplyWidget> {
     return Consumer<Snoop>(builder: (context, snoop, widget) {
       if (replyComplete) {
         return CommentWidget(
-            comment: new Comment(author: snoop.loggedInUsername, body: textEditingController.text),
+            comment:
+                new Comment(author: snoop.loggedInRedditorname, body: textEditingController.text),
             showParent: false,
             showReplyButton: false);
       } else {

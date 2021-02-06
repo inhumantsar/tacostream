@@ -9,24 +9,24 @@ import 'package:tacostream/services/snoop.dart';
 import 'package:tacostream/services/theme.dart';
 import 'package:tacostream/widgets/comment/comment.dart';
 
-class UserCommentsView extends StatelessWidget {
+class RedditorCommentsView extends StatelessWidget {
   final String username;
-  final log = BaseLogger('UserCommentsView');
+  final log = BaseLogger('RedditorCommentsView');
 
-  UserCommentsView([this.username]);
+  RedditorCommentsView([this.username]);
 
   @override
   Widget build(BuildContext context) {
     return Consumer2<Snoop, ThemeService>(builder: (context, snoop, ts, widget) {
       return Scaffold(
           appBar: AppBar(
-            title: Text(this.username ?? snoop.loggedInUsername),
+            title: Text(this.username ?? snoop.loggedInRedditorname),
             backgroundColor: Theme.of(context).appBarTheme.color, // really?
             actions: [],
           ),
           body: SingleChildScrollView(
-            child: FutureBuilder<List<Comment>>(
-                future: snoop.getUserComments(this.username).where((c) => c != null).toList(),
+            child: StreamBuilder<List<Comment>>(
+                stream: snoop.getRedditorComments(this.username).where((c) => c != null),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     final cList = snapshot.data;

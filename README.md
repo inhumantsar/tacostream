@@ -13,4 +13,4 @@ Just like any other Flutter project.
 These need to be generated before running a build:
 
         flutter pub get
-        flutter packages pub run build_runner build
+        flutter packages pub run build_runner build --delete-conflicting-outputs

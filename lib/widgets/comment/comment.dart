@@ -43,8 +43,7 @@ class CommentWidget extends StatefulWidget {
       author: 'theRealDubya',
       authorFlairImageUrl: 'https://emoji.redditmedia.com/1uhosge0o2231_t5_2sfn3/nato',
       authorFlairText: 'NATO',
-      body:
-          """🦀🦀🦀 😤😤😤 🇨🇦🇨🇦🇨🇦
+      body: """🦀🦀🦀 😤😤😤 🇨🇦🇨🇦🇨🇦
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse hendrerit nulla ac metus euismod luctus.
 
@@ -133,7 +132,7 @@ class _CommentWidgetState extends State<CommentWidget> {
                           Expanded(
                               child: GestureDetector(
                                   onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (context) => UserCommentsView(c.author))),
+                                      builder: (context) => RedditorCommentsView(c.author))),
                                   child: Container(
                                     alignment: Alignment.centerLeft,
                                     child: Padding(
