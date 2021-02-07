@@ -42,6 +42,7 @@ class Snoop extends ChangeNotifier with BaseService {
   final String postTitle = 'Discussion Thread';
   final String postAuthor = 'jobautomator';
   Map<String, draw.Redditor> _redditors = {};
+  Map<String, ReplaySubject<Comment>> _commentStreams = {};
 
   IngestStatus _status;
   LoginStatus _loginStatus = LoginStatus.loggedOut;
@@ -95,36 +96,50 @@ class Snoop extends ChangeNotifier with BaseService {
     return thread;
   }
 
-  Stream<List<Comment>> getRedditorComments([String username]) async* {
-    final start = new DateTime.now();
-    this.log.debug('getRedditorComments started for $username at ${start.toIso8601String()}');
+  bool isLoadingRedditorComments([String username]) {
     final u = username ?? loggedInRedditorname;
-    final comments = ReplaySubject();
+    if (!_commentStreams.containsKey(u)) return false;
+    return _commentStreams[u].isClosed;
+  }
+
+  ReplaySubject<Comment> getRedditorComments([String username]) {
+    final u = username ?? loggedInRedditorname;
+
+    if (!_commentStreams.containsKey(u)) {
+      this.log.debug('getRedditorComments: creating new comment stream');
+      _commentStreams[u] = ReplaySubject<Comment>();
+      _getRedditorComments(u);
+    }
+    return _commentStreams[u];
+  }
+
+  Future<void> _getRedditorComments(String username) async {
+    this.log.debug('getRedditorComments started for $username');
 
     // build/fetch Redditor obj as necessary
     draw.Redditor r;
-    if (_redditors.containsKey(u)) {
-      this.log.debug('getRedditorComments: found $u in the cache');
-      r = _redditors[u];
+    if (_redditors.containsKey(username)) {
+      this.log.debug('getRedditorComments: found $username in the cache');
+      r = _redditors[username];
     } else {
-      this.log.debug('getRedditorComments: populating $u from reddit');
-      r = _redditors[u] = await _reddit.redditor(u).populate();
+      this.log.debug('getRedditorComments: populating $username from reddit');
+      r = _redditors[username] = await _reddit.redditor(username).populate();
     }
 
-    // build list of comments incrementally, yielding the list every time
-    r.comments.newest(limit: 100);
-
-    // yield* r.comments.newest(limit: 100).asyncMap<Comment>((uc) async {
-    //   this.log.debug('getRedditorComments: got comment');
-    //   if (await _commentIsOnDt(uc as draw.Comment)) {
-    //     this.log.debug('getRedditorComments: comment is on dt');
-    //     comList.add(Comment.fromDrawComment(uc as draw.Comment));
-    //     return comList;
-    //   } else {
-    //     this.log.debug('getRedditorComments: skipping comment');
-    //     return comList;
-    //   }
-    // });
+    // process each comment, only adding those on the dt
+    this.log.debug('getRedditorComments: starting asyncMap on newest comments');
+    r.comments.newest(limit: 100).listen((uc) async {
+      if (await _commentIsOnDt(uc as draw.Comment)) {
+        // this.log.debug('getRedditorComments: comment is on dt');
+        _commentStreams[username].add(Comment.fromDrawComment(uc as draw.Comment));
+        notifyListeners();
+      } //else
+      // this.log.debug('getRedditorComments: skipping comment');
+    }, onDone: () {
+      // close the stream after the last comment is processed
+      // _commentStreams[username].close();
+      // this.log.debug('getRedditorComments complete');
+    });
   }
 
   WatercoolerStatus get cacheStatus => _wc.status;
@@ -236,10 +251,8 @@ class Snoop extends ChangeNotifier with BaseService {
   }
 
   /// matches old and new DTs
-  bool _submissionIsDt(draw.Submission s) => (s.stickied &&
-      s.title == postTitle &&
-      s.author == postAuthor &&
-      s.subreddit.displayName == subreddit);
+  bool _submissionIsDt(draw.Submission s) =>
+      (s.title == postTitle && s.author == postAuthor && s.subreddit.displayName == subreddit);
 
   // Comment pipeline
   Future<draw.Comment> _newCommentsFilter(draw.Comment c) async =>

@@ -108,15 +108,15 @@ class _StreamViewState extends State<StreamView> {
                       .push(MaterialPageRoute(builder: (context) => SettingsView())),
                 ),
                 // logged in user's comments
-                IconButton(
-                  padding: const EdgeInsets.all(0),
-                  icon: Icon(FontAwesomeIcons.solidComment),
-                  color: secondary,
-                  onPressed: snoop.loggedInRedditorname.isEmpty
-                      ? null
-                      : () => Navigator.of(context)
-                          .push(MaterialPageRoute(builder: (context) => RedditorCommentsView())),
-                ), // top level comment entry
+                snoop.loggedInRedditorname.isEmpty
+                    ? SizedBox.shrink()
+                    : IconButton(
+                        padding: const EdgeInsets.all(0),
+                        icon: Icon(FontAwesomeIcons.solidComment),
+                        color: secondary,
+                        onPressed: () => Navigator.of(context)
+                            .push(MaterialPageRoute(builder: (context) => RedditorCommentsView())),
+                      ), // top level comment entry
                 IconButton(
                   padding: const EdgeInsets.all(0),
                   icon: Icon(showSubmitArea
