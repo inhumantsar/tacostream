@@ -10,13 +10,15 @@ This project requires a Flutter version below 3.0.0 and above 2.7.0, meaning one
 Downgrade Flutter by navigating to your SDK path:
 
         cd /path/to/flutter/sdk
+
 Switch branches for your SDK to v2.10. with:
 
-        git checkout v2.10.5.
+        git checkout v2.10.5
 
 Then, build like any other Flutter project.
 
         flutter build
+        
 ### Hive type adaptors
 
 These need to be generated before running a build:
