@@ -4,12 +4,21 @@ Streams /r/neoliberal's busyass discussion thread.
 
 [Now available on the Google Play Store](https://play.google.com/store/apps/details?id=ca.inhumantsar.tacostream)
 
-## Build
+## Build instructions
+This project requires a Flutter version below 3.0.0 and above 2.7.0, meaning one must downgrade their Flutter version to 2.10.5 in order to build the project.
 
-Just like any other Flutter project.
+Downgrade Flutter by navigating to your SDK path:
+
+        cd /path/to/flutter/sdk
+
+Switch branches for your SDK to v2.10. with:
+
+        git checkout v2.10.5
+
+Then, build like any other Flutter project.
 
         flutter build
-
+        
 ### Hive type adaptors
 
 These need to be generated before running a build:
